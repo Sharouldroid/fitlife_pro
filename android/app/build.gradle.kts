@@ -24,7 +24,7 @@ android {
         applicationId = "com.example.fitlife_pro"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = 21      // <--- CHANGED: Increased to 21 (Required for Firebase/Firestore)
+        minSdk = flutter.minSdkVersion      // <--- CHANGED: Increased to 21 (Required for Firebase/Firestore)
         targetSdk = 34   // <--- CHANGED: Set to 34 to match compileSdk
         versionCode = flutter.versionCode
         versionName = flutter.versionName

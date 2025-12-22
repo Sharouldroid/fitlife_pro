@@ -8,46 +8,35 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  bool _notificationsEnabled = true;
+  bool _notifications = true;
   bool _darkMode = false;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Settings")),
+      appBar: AppBar(title: const Text("Settings"), backgroundColor: Colors.teal),
       body: ListView(
         children: [
           SwitchListTile(
-            title: const Text("Enable Notifications"),
-            value: _notificationsEnabled,
-            onChanged: (bool value) {
-              setState(() => _notificationsEnabled = value);
-            },
-            secondary: const Icon(Icons.notifications),
+            title: const Text("Notifications"),
+            subtitle: const Text("Receive daily workout reminders"),
+            value: _notifications,
+            activeColor: Colors.teal,
+            onChanged: (val) => setState(() => _notifications = val),
           ),
           SwitchListTile(
             title: const Text("Dark Mode"),
+            subtitle: const Text("Reduce eye strain"),
             value: _darkMode,
-            onChanged: (bool value) {
-              setState(() => _darkMode = value);
-            },
-            secondary: const Icon(Icons.dark_mode),
+            activeColor: Colors.teal,
+            onChanged: (val) => setState(() => _darkMode = val),
           ),
           const Divider(),
           ListTile(
+            leading: const Icon(Icons.info_outline),
             title: const Text("About App"),
-            subtitle: const Text("Version 1.0.0"),
-            leading: const Icon(Icons.info),
-            onTap: () {
-              // Show about dialog
-              showAboutDialog(
-                context: context,
-                applicationName: "FitLife Pro",
-                applicationVersion: "1.0.0",
-                children: [const Text("Developed for Assignment 2")],
-              );
-            },
-          )
+            subtitle: const Text("Version 1.0.0 (Assignment 2)"),
+          ),
         ],
       ),
     );

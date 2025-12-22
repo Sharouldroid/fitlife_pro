@@ -12,10 +12,11 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    // Simulate loading time then go to Login/Home wrapper
+    
+    // FIX: Added navigation logic inside the Timer
     Timer(const Duration(seconds: 3), () {
-      // Logic handled by main.dart wrapper usually, but this is a fallback
-      // or simply serves as a branding page.
+      // Use pushReplacementNamed so the user can't go "back" to the splash screen
+      Navigator.of(context).pushReplacementNamed('/'); 
     });
   }
 
