@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../services/database_service.dart';
+// IMPORT CUSTOM WIDGETS
+import '../../widgets/custom_button.dart';
+import '../../widgets/custom_text_field.dart';
 
 class EditActivityScreen extends StatefulWidget {
   final String docId;
@@ -26,11 +29,20 @@ class _EditActivityScreenState extends State<EditActivityScreen> {
   @override
   void initState() {
     super.initState();
-    // Pre-fill data
+    // Pre-fill data from the passed Map
     _typeController = TextEditingController(text: widget.currentData['type']);
     _durationController = TextEditingController(text: widget.currentData['duration']);
     _caloriesController = TextEditingController(text: widget.currentData['calories']);
     _notesController = TextEditingController(text: widget.currentData['notes']);
+  }
+
+  @override
+  void dispose() {
+    _typeController.dispose();
+    _durationController.dispose();
+    _caloriesController.dispose();
+    _notesController.dispose();
+    super.dispose();
   }
 
   @override
@@ -39,100 +51,94 @@ class _EditActivityScreenState extends State<EditActivityScreen> {
       appBar: AppBar(
         title: const Text("Edit Activity"), 
         backgroundColor: Colors.teal,
+        elevation: 0,
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
+      backgroundColor: Colors.grey[50], // Modern light background
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20.0),
         child: Form(
           key: _formKey,
-          child: ListView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // 1. Activity Type
-              TextFormField(
+              CustomTextField(
                 controller: _typeController,
-                decoration: const InputDecoration(
-                  labelText: "Activity Type",
-                  prefixIcon: Icon(Icons.fitness_center),
-                  border: OutlineInputBorder(),
-                ),
+                label: "Activity Type",
+                prefixIcon: Icons.fitness_center,
                 validator: (val) => val!.isEmpty ? "Required" : null,
               ),
-              const SizedBox(height: 15),
+              const SizedBox(height: 20),
 
               // 2. Duration
-              TextFormField(
+              CustomTextField(
                 controller: _durationController,
-                decoration: const InputDecoration(
-                  labelText: "Duration",
-                  prefixIcon: Icon(Icons.timer),
-                  border: OutlineInputBorder(),
-                ),
+                label: "Duration",
+                prefixIcon: Icons.timer,
                 keyboardType: TextInputType.number,
                 validator: (val) => val!.isEmpty ? "Required" : null,
               ),
-              const SizedBox(height: 15),
+              const SizedBox(height: 20),
 
               // 3. Calories
-              TextFormField(
+              CustomTextField(
                 controller: _caloriesController,
-                decoration: const InputDecoration(
-                  labelText: "Calories",
-                  prefixIcon: Icon(Icons.local_fire_department),
-                  border: OutlineInputBorder(),
-                ),
+                label: "Calories",
+                prefixIcon: Icons.local_fire_department,
                 keyboardType: TextInputType.number,
                 validator: (val) => val!.isEmpty ? "Required" : null,
               ),
-              const SizedBox(height: 15),
+              const SizedBox(height: 20),
 
               // 4. Notes
-              TextFormField(
+              CustomTextField(
                 controller: _notesController,
-                decoration: const InputDecoration(
-                  labelText: "Notes",
-                  prefixIcon: Icon(Icons.note),
-                  border: OutlineInputBorder(),
-                ),
+                label: "Notes",
+                prefixIcon: Icons.note_alt_outlined,
                 maxLines: 3,
               ),
-              const SizedBox(height: 25),
+              const SizedBox(height: 35),
 
-              // 5. UPDATE BUTTON with Popup Logic
-              SizedBox(
-                height: 50,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.teal,
-                    padding: const EdgeInsets.symmetric(vertical: 15),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  ),
-                  onPressed: _isLoading ? null : () async {
-                    if (_formKey.currentState!.validate()) {
-                      setState(() => _isLoading = true); // Start Loading
-                      
-                      await DatabaseService().updateActivity(
-                        docId: widget.docId,
-                        type: _typeController.text,
-                        duration: _durationController.text,
-                        calories: _caloriesController.text,
-                        notes: _notesController.text,
-                      );
-                      
-                      setState(() => _isLoading = false); // Stop Loading
-
-                      // Show Success Popup
-                      _showSuccessDialog(context);
-                    }
-                  },
-                  child: _isLoading 
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text("Update Activity", style: TextStyle(fontSize: 18, color: Colors.white)),
-                ),
+              // 5. UPDATE BUTTON (Using Custom Widget)
+              CustomButton(
+                text: "Update Activity",
+                isLoading: _isLoading,
+                icon: Icons.update,
+                onPressed: _updateActivity,
               ),
             ],
           ),
         ),
       ),
     );
+  }
+
+  // --- UPDATE LOGIC ---
+  Future<void> _updateActivity() async {
+    if (_formKey.currentState!.validate()) {
+      setState(() => _isLoading = true); // Start Loading
+      
+      try {
+        await DatabaseService().updateActivity(
+          docId: widget.docId,
+          type: _typeController.text.trim(),
+          duration: _durationController.text.trim(),
+          calories: _caloriesController.text.trim(),
+          notes: _notesController.text.trim(),
+        );
+        
+        setState(() => _isLoading = false); // Stop Loading
+
+        // Show Success Popup
+        if (!mounted) return;
+        _showSuccessDialog(context);
+      } catch (e) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error updating: $e")),
+        );
+      }
+    }
   }
 
   // --- MODERN POPUP FUNCTION ---
@@ -187,7 +193,8 @@ class _EditActivityScreenState extends State<EditActivityScreen> {
                     onPressed: () {
                       Navigator.of(context).pop(); // Close Dialog
                       Navigator.of(context).pop(); // Close Edit Screen
-                      Navigator.of(context).pop(); // Close Detail Screen (Return to List)
+                      // Note: We do NOT pop a third time here, because the Detail screen 
+                      // is now listening to streams and will update automatically.
                     },
                     child: const Text("OK", style: TextStyle(color: Colors.white)),
                   ),

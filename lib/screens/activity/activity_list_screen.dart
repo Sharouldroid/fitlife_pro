@@ -4,6 +4,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../services/database_service.dart';
 import '../../services/auth_service.dart';
 import 'activity_detail_screen.dart';
+// IMPORT YOUR CUSTOM WIDGET
+import '../../widgets/activity_card.dart'; 
 
 class ActivityListScreen extends StatelessWidget {
   const ActivityListScreen({Key? key}) : super(key: key);
@@ -18,6 +20,7 @@ class ActivityListScreen extends StatelessWidget {
         title: const Text("My Activity History"),
         centerTitle: true,
         backgroundColor: Colors.teal,
+        elevation: 0,
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
@@ -27,42 +30,66 @@ class ActivityListScreen extends StatelessWidget {
           )
         ],
       ),
+      backgroundColor: Colors.grey[50], // Light background for contrast
       body: StreamBuilder<QuerySnapshot>(
         stream: DatabaseService().getUserData(uid),
         builder: (context, snapshot) {
-          if (snapshot.hasError) return Center(child: Text("Error: ${snapshot.error}"));
-          if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return const Center(child: Text("No activities found.\nStart by adding a new workout!", textAlign: TextAlign.center));
+          // 1. Error State
+          if (snapshot.hasError) {
+            return Center(child: Text("Error: ${snapshot.error}"));
           }
 
+          // 2. Loading State
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          // 3. Empty State
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.history, size: 80, color: Colors.grey[300]),
+                  const SizedBox(height: 15),
+                  const Text(
+                    "No activities found.\nStart by adding a new workout!",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.grey, fontSize: 16),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          // 4. Data List
           final documents = snapshot.data!.docs;
+          
           return ListView.builder(
             itemCount: documents.length,
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             itemBuilder: (context, index) {
               final doc = documents[index];
               final data = doc.data() as Map<String, dynamic>;
-              return Card(
-                elevation: 3,
-                margin: const EdgeInsets.symmetric(vertical: 8),
-                child: ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: Colors.teal.shade100,
-                    child: Icon(Icons.fitness_center, color: Colors.teal),
-                  ),
-                  title: Text(data['type'] ?? 'Unknown', style: const TextStyle(fontWeight: FontWeight.bold)),
-                  subtitle: Text("Duration: ${data['duration']} | Burned: ${data['calories']} kcal"),
-                  trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => ActivityDetailScreen(docId: doc.id, currentData: data),
+
+              // Using your new Custom ActivityCard Widget
+              return ActivityCard(
+                title: data['type'] ?? 'Unknown Workout',
+                subtitle: "${data['duration']} mins",
+                calories: "${data['calories']} kcal",
+                icon: _getIconForType(data['type']), // Dynamic Icon logic
+                color: _getColorForType(data['type']), // Dynamic Color logic
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => ActivityDetailScreen(
+                        docId: doc.id, 
+                        currentData: data
                       ),
-                    );
-                  },
-                ),
+                    ),
+                  );
+                },
               );
             },
           );
@@ -74,5 +101,25 @@ class ActivityListScreen extends StatelessWidget {
         child: const Icon(Icons.add),
       ),
     );
+  }
+
+  // Helper to pick a nice icon based on the workout name
+  IconData _getIconForType(String? type) {
+    final t = type?.toLowerCase() ?? '';
+    if (t.contains('run')) return Icons.directions_run;
+    if (t.contains('walk')) return Icons.directions_walk;
+    if (t.contains('swim')) return Icons.pool;
+    if (t.contains('bike') || t.contains('cycl')) return Icons.directions_bike;
+    if (t.contains('yoga')) return Icons.self_improvement;
+    return Icons.fitness_center; // Default
+  }
+
+  // Helper to pick a color based on workout type
+  Color _getColorForType(String? type) {
+    final t = type?.toLowerCase() ?? '';
+    if (t.contains('run')) return Colors.orange;
+    if (t.contains('swim')) return Colors.blue;
+    if (t.contains('yoga')) return Colors.purple;
+    return Colors.teal; // Default
   }
 }
