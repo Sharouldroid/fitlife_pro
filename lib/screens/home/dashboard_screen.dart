@@ -40,21 +40,17 @@ class DashboardScreen extends StatelessWidget {
             final data = doc.data() as Map<String, dynamic>;
             
             // --- CALORIES LOGIC ---
-            // Remove everything except numbers and dots (e.g. "200 kcal" -> "200")
             String calString = data['calories'].toString().replaceAll(RegExp(r'[^0-9.]'), '');
             totalCalories += double.tryParse(calString) ?? 0;
 
             // --- DURATION LOGIC (Minutes & Hours) ---
             String durRaw = data['duration'].toString().toLowerCase();
-            // Remove non-numeric chars but keep dots for decimals (e.g. "1.5")
             String durNumber = durRaw.replaceAll(RegExp(r'[^0-9.]'), '');
             double val = double.tryParse(durNumber) ?? 0;
 
             if (durRaw.contains('h')) {
-              // If it contains "h" (hour, hr, hrs), multiply by 60
               totalDuration += (val * 60).toInt();
             } else {
-              // Otherwise, assume minutes
               totalDuration += val.toInt();
             }
           }
@@ -151,22 +147,38 @@ class DashboardScreen extends StatelessWidget {
             ),
             decoration: const BoxDecoration(color: Colors.teal),
           ),
+          
+          // 1. History
           ListTile(
             leading: const Icon(Icons.list),
             title: const Text("History"),
             onTap: () => Navigator.pushNamed(context, '/activity_list'),
           ),
+
+          // 2. NEW: Body Metrics Tracker (Added Here)
+          ListTile(
+            leading: const Icon(Icons.monitor_weight),
+            title: const Text("Body Metrics Tracker"),
+            onTap: () => Navigator.pushNamed(context, '/body_metrics'),
+          ),
+
+          // 3. Profile
           ListTile(
             leading: const Icon(Icons.person),
             title: const Text("Profile"),
             onTap: () => Navigator.pushNamed(context, '/profile'),
           ),
+
+          // 4. Settings
           ListTile(
             leading: const Icon(Icons.settings),
             title: const Text("Settings"),
             onTap: () => Navigator.pushNamed(context, '/settings'),
           ),
+          
           const Divider(),
+          
+          // 5. Logout
           ListTile(
             leading: const Icon(Icons.logout, color: Colors.red),
             title: const Text("Logout"),

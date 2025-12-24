@@ -16,6 +16,7 @@ import 'screens/activity/add_activity_screen.dart';
 // --- PROFILE SCREENS ---
 import 'screens/profile/profile_screen.dart';
 import 'screens/profile/settings_screen.dart';
+import 'screens/profile/body_metrics_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -68,6 +69,7 @@ class MyApp extends StatelessWidget {
         // Profile & Settings
         '/profile': (context) => const ProfileScreen(),
         '/settings': (context) => const SettingsScreen(),
+        '/body_metrics': (context) => const BodyMetricsScreen(),
       },
     );
   }
