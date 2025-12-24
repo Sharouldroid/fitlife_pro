@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../services/auth_service.dart';
 import 'register_screen.dart';
+// IMPORT CUSTOM WIDGETS
+import '../../widgets/custom_button.dart';
+import '../../widgets/custom_text_field.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -13,14 +16,26 @@ class _LoginScreenState extends State<LoginScreen> {
   final AuthService _auth = AuthService();
   final _formKey = GlobalKey<FormState>();
 
-  String email = '';
-  String password = '';
+  // Use Controllers for CustomTextField
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+
   String error = '';
+  bool _isLoading = false;
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: Colors.white,
+      // Background color handled by Theme
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 30),
@@ -29,45 +44,76 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.fitness_center, size: 80, color: Colors.teal),
+                // Logo Logo
+                Icon(Icons.fitness_center, size: 80, color: isDark ? Colors.tealAccent : Colors.teal),
                 const SizedBox(height: 20),
-                const Text("FitLife Pro", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.teal)),
+                Text(
+                  "FitLife Pro", 
+                  style: TextStyle(
+                    fontSize: 28, 
+                    fontWeight: FontWeight.bold, 
+                    color: isDark ? Colors.white : Colors.teal
+                  )
+                ),
                 const SizedBox(height: 40),
-                TextFormField(
-                  decoration: const InputDecoration(labelText: "Email", prefixIcon: Icon(Icons.email), border: OutlineInputBorder()),
+                
+                // 1. Email Field
+                CustomTextField(
+                  controller: _emailController,
+                  label: "Email",
+                  prefixIcon: Icons.email_outlined,
+                  keyboardType: TextInputType.emailAddress,
                   validator: (val) => val!.isEmpty ? 'Enter an email' : null,
-                  onChanged: (val) => setState(() => email = val),
                 ),
                 const SizedBox(height: 20),
-                TextFormField(
-                  decoration: const InputDecoration(labelText: "Password", prefixIcon: Icon(Icons.lock), border: OutlineInputBorder()),
-                  obscureText: true,
+                
+                // 2. Password Field
+                CustomTextField(
+                  controller: _passwordController,
+                  label: "Password",
+                  prefixIcon: Icons.lock_outline,
+                  isPassword: true,
                   validator: (val) => val!.length < 6 ? 'Password must be 6+ chars' : null,
-                  onChanged: (val) => setState(() => password = val),
                 ),
                 const SizedBox(height: 20),
+                
+                // Error Message
                 Text(error, style: const TextStyle(color: Colors.red, fontSize: 14.0)),
                 const SizedBox(height: 10),
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.teal),
-                    onPressed: () async {
-                      if (_formKey.currentState!.validate()) {
-                        dynamic result = await _auth.signInWithEmailPassword(email, password);
-                        if (result == null) {
-                          setState(() => error = 'Could not sign in with those credentials');
-                        }
+                
+                // 3. Login Button
+                CustomButton(
+                  text: "Sign In",
+                  isLoading: _isLoading,
+                  onPressed: () async {
+                    if (_formKey.currentState!.validate()) {
+                      setState(() => _isLoading = true);
+                      dynamic result = await _auth.signInWithEmailPassword(
+                        _emailController.text.trim(), 
+                        _passwordController.text
+                      );
+                      if (result == null) {
+                        setState(() {
+                          error = 'Could not sign in with those credentials';
+                          _isLoading = false;
+                        });
                       }
-                    },
-                    child: const Text("Sign In", style: TextStyle(fontSize: 18, color: Colors.white)),
-                  ),
+                      // No need to set isLoading = false on success; the widget will rebuild on route change.
+                    }
+                  },
                 ),
                 const SizedBox(height: 20),
+                
+                // Register Link
                 GestureDetector(
                   onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const RegisterScreen())),
-                  child: const Text("Register", style: TextStyle(color: Colors.teal, fontWeight: FontWeight.bold)),
+                  child: Text(
+                    "Don't have an account? Register", 
+                    style: TextStyle(
+                      color: isDark ? Colors.tealAccent : Colors.teal, 
+                      fontWeight: FontWeight.bold
+                    )
+                  ),
                 ),
               ],
             ),

@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../services/auth_service.dart';
+// IMPORT CUSTOM WIDGETS
+import '../../widgets/custom_button.dart';
+import '../../widgets/custom_text_field.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({Key? key}) : super(key: key);
@@ -12,102 +15,100 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final AuthService _auth = AuthService();
   final _formKey = GlobalKey<FormState>();
 
-  String email = '';
-  String password = '';
+  // Use Controllers
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+
   String error = '';
-  bool loading = false;
+  bool _isLoading = false;
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Create Account"), backgroundColor: Colors.teal),
-      body: Container(
+      appBar: AppBar(
+        title: const Text("Create Account"),
+        elevation: 0,
+        // Background color handled by Theme
+      ),
+      // Background color handled by Theme
+      body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 20),
         child: Form(
           key: _formKey,
           child: Column(
             children: [
-              // ==============================
-              // IMPROVED EMAIL LOGIC HERE
-              // ==============================
-              TextFormField(
-                decoration: const InputDecoration(
-                  labelText: "Email", 
-                  prefixIcon: Icon(Icons.email), 
-                  border: OutlineInputBorder()
-                ),
+              // 1. Email Field (With Regex)
+              CustomTextField(
+                controller: _emailController,
+                label: "Email",
+                prefixIcon: Icons.email_outlined,
+                keyboardType: TextInputType.emailAddress,
                 validator: (val) {
                   if (val == null || val.isEmpty) {
                     return 'Enter an email';
                   }
-                  // Logic: Check for valid email pattern using Regex
-                  // This checks for [text] + [@] + [text] + [.] + [text]
+                  // Slightly improved regex for broader support
                   bool emailValid = RegExp(r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+-/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+")
                       .hasMatch(val);
-                  
                   if (!emailValid) {
                     return 'Enter a valid email (e.g. name@mail.com)';
                   }
                   return null;
                 },
-                onChanged: (val) {
-                  setState(() => email = val);
-                },
               ),
               const SizedBox(height: 20),
               
-              // PASSWORD INPUT
-              TextFormField(
-                decoration: const InputDecoration(
-                  labelText: "Password", 
-                  prefixIcon: Icon(Icons.lock), 
-                  border: OutlineInputBorder()
-                ),
-                obscureText: true,
+              // 2. Password Field
+              CustomTextField(
+                controller: _passwordController,
+                label: "Password",
+                prefixIcon: Icons.lock_outline,
+                isPassword: true,
                 validator: (val) => val!.length < 6 ? 'Password must be 6+ chars' : null,
-                onChanged: (val) => setState(() => password = val),
               ),
               const SizedBox(height: 20),
               
-              // ERROR MESSAGE
+              // Error Message
               Text(
                 error, 
                 style: const TextStyle(color: Colors.red, fontSize: 14.0)
               ),
               const SizedBox(height: 10),
               
-              // REGISTER BUTTON
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.teal),
-                  onPressed: () async {
-                    // 1. Run the validators (Email & Password check)
-                    if (_formKey.currentState!.validate()) {
-                      setState(() => loading = true);
-                      
-                      // 2. Attempt Registration
-                      dynamic result = await _auth.registerWithEmailPassword(email, password);
-                      
-                      if (result == null) {
-                        // 3. Handle Failure
+              // 3. Register Button
+              CustomButton(
+                text: "Register",
+                isLoading: _isLoading,
+                onPressed: () async {
+                  if (_formKey.currentState!.validate()) {
+                    setState(() => _isLoading = true);
+                    
+                    dynamic result = await _auth.registerWithEmailPassword(
+                      _emailController.text.trim(), 
+                      _passwordController.text
+                    );
+                    
+                    if (result == null) {
+                      if (mounted) {
                         setState(() {
                           error = 'Registration failed. Email might be in use.';
-                          loading = false;
+                          _isLoading = false;
                         });
-                      } else {
-                        // 4. Handle Success (Close screen or Navigate)
-                        if (mounted) {
-                           Navigator.pop(context);
-                        }
+                      }
+                    } else {
+                      if (mounted) {
+                        Navigator.pop(context); // Go back to Login on success
                       }
                     }
-                  },
-                  child: loading 
-                      ? const CircularProgressIndicator(color: Colors.white) 
-                      : const Text("Register", style: TextStyle(fontSize: 18, color: Colors.white)),
-                ),
+                  }
+                },
               ),
             ],
           ),
