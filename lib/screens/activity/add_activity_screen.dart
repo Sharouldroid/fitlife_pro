@@ -17,7 +17,9 @@ class _AddActivityScreenState extends State<AddActivityScreen> {
   String duration = '';
   String calories = '';
   String notes = '';
-  bool _isLoading = false; // To show loading spinner on button
+  
+  // Loading State (Prevents double-clicks and stuck UI)
+  bool _isLoading = false;
 
   @override
   Widget build(BuildContext context) {
@@ -82,7 +84,7 @@ class _AddActivityScreenState extends State<AddActivityScreen> {
               ),
               const SizedBox(height: 25),
 
-              // 5. SAVE BUTTON with Modern Popup Logic
+              // 5. SAVE BUTTON (With Error Handling Fix)
               SizedBox(
                 height: 50,
                 child: ElevatedButton(
@@ -90,24 +92,45 @@ class _AddActivityScreenState extends State<AddActivityScreen> {
                     backgroundColor: Colors.teal,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   ),
+                  // Disable button while loading
                   onPressed: _isLoading ? null : () async {
                     if (_formKey.currentState!.validate()) {
-                      setState(() => _isLoading = true); // Start Loading
-                      
-                      final User? user = FirebaseAuth.instance.currentUser;
-                      if (user != null) {
-                        await DatabaseService().addActivity(
-                          uid: user.uid,
-                          type: type,
-                          duration: duration,
-                          calories: calories,
-                          notes: notes,
-                        );
-                        
-                        setState(() => _isLoading = false); // Stop Loading
+                      // START LOADING
+                      setState(() => _isLoading = true); 
 
-                        // TRIGGER THE MODERN POPUP
-                        _showSuccessDialog(context); 
+                      try {
+                        final User? user = FirebaseAuth.instance.currentUser;
+                        
+                        if (user != null) {
+                          // Attempt to save to Firebase
+                          await DatabaseService().addActivity(
+                            uid: user.uid,
+                            type: type,
+                            duration: duration,
+                            calories: calories,
+                            notes: notes,
+                          );
+
+                          // STOP LOADING & SHOW SUCCESS
+                          if (!mounted) return;
+                          setState(() => _isLoading = false);
+                          
+                          // Trigger the Modern Popup
+                          _showSuccessDialog(context); 
+                        } else {
+                          throw Exception("No user logged in");
+                        }
+                      } catch (e) {
+                        // ERROR HANDLING: Stop loading & show message
+                        if (!mounted) return;
+                        setState(() => _isLoading = false);
+                        
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text("Error: ${e.toString()}"),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
                       }
                     }
                   },
@@ -127,7 +150,7 @@ class _AddActivityScreenState extends State<AddActivityScreen> {
   void _showSuccessDialog(BuildContext context) {
     showDialog(
       context: context,
-      barrierDismissible: false, // User must tap button to close
+      barrierDismissible: false, // User MUST tap OK to close
       builder: (BuildContext context) {
         return Dialog(
           shape: RoundedRectangleBorder(
@@ -148,13 +171,15 @@ class _AddActivityScreenState extends State<AddActivityScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Big Success Icon
+                // Big Green Checkmark
                 const CircleAvatar(
                   backgroundColor: Colors.green,
                   radius: 40,
                   child: Icon(Icons.check, size: 50, color: Colors.white),
                 ),
                 const SizedBox(height: 20),
+                
+                // Success Text
                 const Text(
                   "Great Job!",
                   style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
@@ -166,6 +191,8 @@ class _AddActivityScreenState extends State<AddActivityScreen> {
                   style: TextStyle(fontSize: 16, color: Colors.grey),
                 ),
                 const SizedBox(height: 25),
+                
+                // OK Button
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
@@ -174,8 +201,8 @@ class _AddActivityScreenState extends State<AddActivityScreen> {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     ),
                     onPressed: () {
-                      Navigator.of(context).pop(); // Close Dialog
-                      Navigator.of(context).pop(); // Go Back to List
+                      Navigator.of(context).pop(); // 1. Close the Dialog
+                      Navigator.of(context).pop(); // 2. Go back to Activity List
                     },
                     child: const Text("OK", style: TextStyle(color: Colors.white)),
                   ),
