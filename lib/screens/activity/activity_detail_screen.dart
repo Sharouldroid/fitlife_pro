@@ -5,7 +5,6 @@ import 'edit_activity_screen.dart';
 
 class ActivityDetailScreen extends StatefulWidget {
   final String docId;
-  // We keep this just for the initial loading state or placeholder
   final Map<String, dynamic> currentData;
 
   const ActivityDetailScreen({
@@ -23,13 +22,15 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // 1. DETECT DARK MODE
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text("Activity Details"),
-        backgroundColor: Colors.teal,
+        // Remove backgroundColor: Colors.teal so it uses Theme
         elevation: 0,
         actions: [
-          // EDIT BUTTON
           IconButton(
             icon: const Icon(Icons.edit),
             onPressed: () {
@@ -38,36 +39,31 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
                 MaterialPageRoute(
                   builder: (context) => EditActivityScreen(
                     docId: widget.docId,
-                    currentData: widget.currentData, // Pass current data to prepopulate form
+                    currentData: widget.currentData,
                   ),
                 ),
               );
             },
           ),
-          // DELETE BUTTON
           IconButton(
             icon: const Icon(Icons.delete),
-            onPressed: () => _showDeleteConfirmation(context),
+            onPressed: () => _showDeleteConfirmation(context, isDark),
           ),
         ],
       ),
-      backgroundColor: Colors.grey[50], // Modern light background
+      // Remove backgroundColor: Colors.grey[50] so it uses Theme
       
-      // REAL-TIME DATA STREAM
       body: StreamBuilder<DocumentSnapshot>(
         stream: DatabaseService().activityCollection.doc(widget.docId).snapshots(),
         builder: (context, snapshot) {
-          // 1. Loading
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          // 2. Error or Deleted
           if (!snapshot.hasData || !snapshot.data!.exists) {
             return const Center(child: Text("Activity not found (it may have been deleted)."));
           }
 
-          // 3. Data Loaded
           final data = snapshot.data!.data() as Map<String, dynamic>;
 
           return SingleChildScrollView(
@@ -80,6 +76,7 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
                   title: "Activity Type",
                   value: data['type'],
                   color: Colors.teal,
+                  isDark: isDark, // Pass Dark Mode status
                 ),
                 const SizedBox(height: 15),
                 _buildModernDetailCard(
@@ -87,6 +84,7 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
                   title: "Duration",
                   value: "${data['duration']} mins",
                   color: Colors.blue,
+                  isDark: isDark,
                 ),
                 const SizedBox(height: 15),
                 _buildModernDetailCard(
@@ -94,24 +92,30 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
                   title: "Calories Burned",
                   value: "${data['calories']} kcal",
                   color: Colors.orange,
+                  isDark: isDark,
                 ),
                 const SizedBox(height: 25),
                 
                 // NOTES SECTION
-                const Text(
+                Text(
                   "Notes",
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
+                  style: TextStyle(
+                    fontSize: 18, 
+                    fontWeight: FontWeight.bold, 
+                    color: isDark ? Colors.white : Colors.black87
+                  ),
                 ),
                 const SizedBox(height: 10),
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    // Change Background based on Mode
+                    color: isDark ? Colors.grey[800] : Colors.white,
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.grey.withOpacity(0.1),
+                        color: Colors.black.withOpacity(0.05),
                         blurRadius: 10,
                         offset: const Offset(0, 4),
                       ),
@@ -121,7 +125,11 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
                     (data['notes'] != null && data['notes'].toString().isNotEmpty) 
                         ? data['notes'] 
                         : "No notes added.",
-                    style: const TextStyle(fontSize: 16, height: 1.5, color: Colors.black87),
+                    style: TextStyle(
+                      fontSize: 16, 
+                      height: 1.5, 
+                      color: isDark ? Colors.grey[300] : Colors.black87
+                    ),
                   ),
                 ),
               ],
@@ -132,21 +140,23 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
     );
   }
 
-  // --- MODERN CARD WIDGET ---
+  // --- UPDATED CARD WIDGET ---
   Widget _buildModernDetailCard({
     required IconData icon, 
     required String title, 
     required String value, 
-    required Color color
+    required Color color,
+    required bool isDark,
   }) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        // Dynamic Background Color
+        color: isDark ? Colors.grey[800] : Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.08),
+            color: Colors.black.withOpacity(0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -168,12 +178,20 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
             children: [
               Text(
                 title,
-                style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                style: TextStyle(
+                  fontSize: 14, 
+                  color: isDark ? Colors.grey[400] : Colors.grey[600]
+                ),
               ),
               const SizedBox(height: 4),
               Text(
                 value,
-                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87),
+                style: TextStyle(
+                  fontSize: 20, 
+                  fontWeight: FontWeight.bold, 
+                  // Dynamic Text Color
+                  color: isDark ? Colors.white : Colors.black87
+                ),
               ),
             ],
           ),
@@ -183,7 +201,7 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
   }
 
   // --- DELETE CONFIRMATION POPUP ---
-  void _showDeleteConfirmation(BuildContext context) {
+  void _showDeleteConfirmation(BuildContext context, bool isDark) {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -195,11 +213,8 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
           child: Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: isDark ? Colors.grey[850] : Colors.white,
               borderRadius: BorderRadius.circular(20),
-              boxShadow: const [
-                BoxShadow(color: Colors.black26, blurRadius: 10, offset: Offset(0, 10)),
-              ],
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -210,15 +225,19 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
                   child: Icon(Icons.delete_forever, size: 40, color: Colors.white),
                 ),
                 const SizedBox(height: 20),
-                const Text(
+                Text(
                   "Delete Activity?",
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    fontSize: 22, 
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : Colors.black87
+                  ),
                 ),
                 const SizedBox(height: 10),
-                const Text(
+                Text(
                   "This action cannot be undone.\nAre you sure?",
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.grey, fontSize: 16),
+                  style: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey, fontSize: 16),
                 ),
                 const SizedBox(height: 25),
                 Row(
@@ -226,9 +245,6 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
                     Expanded(
                       child: TextButton(
                         onPressed: () => Navigator.pop(context),
-                        style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                        ),
                         child: const Text("Cancel", style: TextStyle(fontSize: 16, color: Colors.grey)),
                       ),
                     ),
@@ -237,15 +253,13 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
                       child: ElevatedButton(
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.redAccent,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                          elevation: 0,
                         ),
                         onPressed: _isLoading ? null : () async {
-                          Navigator.pop(context); // Close Confirmation
+                          Navigator.pop(context);
                           await _performDelete();
                         },
-                        child: const Text("Delete", style: TextStyle(color: Colors.white, fontSize: 16)),
+                        child: const Text("Delete", style: TextStyle(color: Colors.white)),
                       ),
                     ),
                   ],
@@ -260,11 +274,13 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
 
   Future<void> _performDelete() async {
     setState(() => _isLoading = true);
-    
     try {
       await DatabaseService().deleteActivity(widget.docId);
       if (!mounted) return;
-      _showSuccessDialog();
+      // We pass 'false' for isDark here just for simplicity, or you can pass actual state
+      // But typically success dialogs look fine in standard colors or we update that too.
+      // For now, let's just close the screen to match standard behavior.
+      Navigator.pop(context); 
     } catch (e) {
       if (!mounted) return;
       setState(() => _isLoading = false);
@@ -272,38 +288,5 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
         SnackBar(content: Text("Error: $e")),
       );
     }
-  }
-
-  void _showSuccessDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.check_circle, color: Colors.green, size: 60),
-              const SizedBox(height: 15),
-              const Text("Deleted!", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.teal),
-                  onPressed: () {
-                    Navigator.pop(context); // Close dialog
-                    Navigator.pop(context); // Pop detail screen
-                  },
-                  child: const Text("OK", style: TextStyle(color: Colors.white)),
-                ),
-              )
-            ],
-          ),
-        ),
-      ),
-    );
   }
 }

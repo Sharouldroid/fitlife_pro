@@ -50,10 +50,11 @@ class _EditActivityScreenState extends State<EditActivityScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Edit Activity"), 
-        backgroundColor: Colors.teal,
+        // REMOVED: backgroundColor: Colors.teal (Now handled by Theme)
         elevation: 0,
       ),
-      backgroundColor: Colors.grey[50], // Modern light background
+      // REMOVED: backgroundColor: Colors.grey[50] (Now handled by Theme)
+      
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20.0),
         child: Form(
@@ -99,7 +100,7 @@ class _EditActivityScreenState extends State<EditActivityScreen> {
               ),
               const SizedBox(height: 35),
 
-              // 5. UPDATE BUTTON (Using Custom Widget)
+              // 5. UPDATE BUTTON
               CustomButton(
                 text: "Update Activity",
                 isLoading: _isLoading,
@@ -116,7 +117,7 @@ class _EditActivityScreenState extends State<EditActivityScreen> {
   // --- UPDATE LOGIC ---
   Future<void> _updateActivity() async {
     if (_formKey.currentState!.validate()) {
-      setState(() => _isLoading = true); // Start Loading
+      setState(() => _isLoading = true);
       
       try {
         await DatabaseService().updateActivity(
@@ -127,12 +128,12 @@ class _EditActivityScreenState extends State<EditActivityScreen> {
           notes: _notesController.text.trim(),
         );
         
-        setState(() => _isLoading = false); // Stop Loading
-
-        // Show Success Popup
         if (!mounted) return;
+        setState(() => _isLoading = false);
+
         _showSuccessDialog(context);
       } catch (e) {
+        if (!mounted) return;
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("Error updating: $e")),
@@ -151,17 +152,12 @@ class _EditActivityScreenState extends State<EditActivityScreen> {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),
-          elevation: 0,
-          backgroundColor: Colors.transparent,
           child: Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              shape: BoxShape.rectangle,
-              color: Colors.white,
+              // Allow Theme to handle card color (Dark Grey vs White)
+              color: Theme.of(context).dialogBackgroundColor, 
               borderRadius: BorderRadius.circular(20),
-              boxShadow: const [
-                BoxShadow(color: Colors.black26, blurRadius: 10, offset: Offset(0, 10)),
-              ],
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -172,6 +168,7 @@ class _EditActivityScreenState extends State<EditActivityScreen> {
                   child: Icon(Icons.check, size: 50, color: Colors.white),
                 ),
                 const SizedBox(height: 20),
+                // Text color automatically adapts via Theme
                 const Text(
                   "Updated!",
                   style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
@@ -193,8 +190,6 @@ class _EditActivityScreenState extends State<EditActivityScreen> {
                     onPressed: () {
                       Navigator.of(context).pop(); // Close Dialog
                       Navigator.of(context).pop(); // Close Edit Screen
-                      // Note: We do NOT pop a third time here, because the Detail screen 
-                      // is now listening to streams and will update automatically.
                     },
                     child: const Text("OK", style: TextStyle(color: Colors.white)),
                   ),

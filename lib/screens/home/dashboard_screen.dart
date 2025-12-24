@@ -10,15 +10,15 @@ class DashboardScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final User? user = FirebaseAuth.instance.currentUser;
     final String uid = user?.uid ?? '';
-
-    // 1. CHECK IF DARK MODE IS ON
-    // We use this boolean to change text colors dynamically
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Dashboard"),
-        // No hardcoded background color (handled by main.dart theme)
+        title: const Text("FitLife Pro"),
+        centerTitle: true,
+        elevation: 0,
+        backgroundColor: Colors.teal, // Transparent for modern look
+        foregroundColor: isDark ? Colors.teal : Colors.white, // Icon/Text color
       ),
       drawer: _buildDrawer(context, user),
       body: StreamBuilder<QuerySnapshot>(
@@ -32,7 +32,7 @@ class DashboardScreen extends StatelessWidget {
             return _buildEmptyState(context);
           }
 
-          // CALCULATE TOTALS
+          // --- CALCULATE TOTALS ---
           final docs = snapshot.data!.docs;
           final int totalWorkouts = docs.length;
           double totalCalories = 0;
@@ -54,34 +54,89 @@ class DashboardScreen extends StatelessWidget {
             }
           }
 
+          // --- MAIN LAYOUT ---
           return SingleChildScrollView(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.all(20.0),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  "Your Progress",
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                // 1. GREETING HEADER
+                Text(
+                  "Hello, ${user?.displayName ?? 'Athlete'}! 👋",
+                  style: TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : Colors.black87,
+                  ),
                 ),
-                const SizedBox(height: 20),
-                
-                // PASS 'isDark' TO THE STAT CARDS
-                _buildStatCard("Workouts", "$totalWorkouts", Icons.directions_run, Colors.teal, isDark),
-                const SizedBox(height: 10),
-                _buildStatCard("Calories", "${totalCalories.toStringAsFixed(0)} kcal", Icons.local_fire_department, Colors.orange, isDark),
-                const SizedBox(height: 10),
-                _buildStatCard("Duration", "$totalDuration mins", Icons.timer, Colors.blue, isDark),
+                Text(
+                  "Here is your daily summary.",
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: isDark ? Colors.grey[400] : Colors.grey[600],
+                  ),
+                ),
                 
                 const SizedBox(height: 30),
-                
-                ElevatedButton.icon(
-                  onPressed: () => Navigator.pushNamed(context, '/add_activity'),
-                  icon: const Icon(Icons.add),
-                  label: const Text("Log New Activity"),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.teal,
-                    padding: const EdgeInsets.all(15),
-                    textStyle: const TextStyle(fontSize: 18),
+
+                // 2. HERO CARD (Calories) - Uses Gradient
+                _buildGradientCard(
+                  title: "Calories Burned",
+                  value: "${totalCalories.toStringAsFixed(0)} kcal",
+                  icon: Icons.local_fire_department_rounded,
+                  colors: [Colors.orange.shade400, Colors.deepOrange.shade600],
+                ),
+
+                const SizedBox(height: 20),
+
+                // 3. ROW OF SMALLER CARDS
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildGradientCard(
+                        title: "Workouts",
+                        value: "$totalWorkouts",
+                        icon: Icons.fitness_center,
+                        colors: [Colors.teal.shade300, Colors.teal.shade700],
+                        isSmall: true,
+                      ),
+                    ),
+                    const SizedBox(width: 15),
+                    Expanded(
+                      child: _buildGradientCard(
+                        title: "Duration",
+                        value: "$totalDuration m",
+                        icon: Icons.timer,
+                        colors: [Colors.blue.shade300, Colors.blue.shade700],
+                        isSmall: true,
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 40),
+
+                // 4. ACTION BUTTON
+                SizedBox(
+                  width: double.infinity,
+                  height: 55,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pushNamed(context, '/add_activity'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: isDark ? Colors.grey[800] : Colors.white,
+                      foregroundColor: Colors.teal,
+                      elevation: 5,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                      shadowColor: Colors.black26,
+                    ),
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.add_circle_outline, size: 28),
+                        SizedBox(width: 10),
+                        Text("Log New Activity", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      ],
+                    ),
                   ),
                 ),
               ],
@@ -92,56 +147,104 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
+  // --- MODERN GRADIENT CARD ---
+  Widget _buildGradientCard({
+    required String title,
+    required String value,
+    required IconData icon,
+    required List<Color> colors,
+    bool isSmall = false,
+  }) {
+    return Container(
+      height: isSmall ? 140 : 160,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: colors,
+        ),
+        borderRadius: BorderRadius.circular(25),
+        boxShadow: [
+          BoxShadow(
+            color: colors.last.withOpacity(0.4),
+            blurRadius: 12,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          // Icon Box
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: Colors.white, size: isSmall ? 24 : 30),
+          ),
+          // Text Data
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: isSmall ? 24 : 32,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 5),
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.white.withOpacity(0.9),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- EMPTY STATE ---
   Widget _buildEmptyState(BuildContext context) {
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.analytics_outlined, size: 80, color: Colors.grey),
-          const SizedBox(height: 15),
-          const Text("No activities yet!", style: TextStyle(fontSize: 18, color: Colors.grey)),
+          Icon(Icons.dashboard_customize_outlined, size: 80, color: Colors.grey[400]),
           const SizedBox(height: 20),
+          Text(
+            "Your Dashboard is Empty",
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87),
+          ),
+          const SizedBox(height: 10),
+          const Text("Start by adding your first workout!", style: TextStyle(color: Colors.grey)),
+          const SizedBox(height: 30),
           ElevatedButton(
             onPressed: () => Navigator.pushNamed(context, '/add_activity'),
-            child: const Text("Start Tracking"),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.teal,
+              padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+            ),
+            child: const Text("Start Tracking", style: TextStyle(fontSize: 16, color: Colors.white)),
           )
         ],
       ),
     );
   }
 
-  // 2. UPDATED CARD FUNCTION
-  // We added 'bool isDark' as a parameter to control colors
-  Widget _buildStatCard(String title, String value, IconData icon, Color color, bool isDark) {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      // Card color is handled automatically by theme, but we ensure text contrasts well:
-      child: ListTile(
-        contentPadding: const EdgeInsets.all(16),
-        leading: CircleAvatar(
-          backgroundColor: color.withOpacity(0.1),
-          radius: 30,
-          child: Icon(icon, size: 30, color: color),
-        ),
-        title: Text(
-          title, 
-          // If Dark Mode: Light Grey. If Light Mode: Dark Grey.
-          style: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey),
-        ),
-        subtitle: Text(
-          value, 
-          // If Dark Mode: White. If Light Mode: Black.
-          style: TextStyle(
-            fontSize: 24, 
-            fontWeight: FontWeight.bold, 
-            color: isDark ? Colors.white : Colors.black87,
-          )
-        ),
-      ),
-    );
-  }
-
+  // --- DRAWER (Unchanged logic, just clean) ---
   Widget _buildDrawer(BuildContext context, User? user) {
     return Drawer(
       child: ListView(
