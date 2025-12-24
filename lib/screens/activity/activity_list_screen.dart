@@ -4,8 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../services/database_service.dart';
 import '../../services/auth_service.dart';
 import 'activity_detail_screen.dart';
-// IMPORT YOUR CUSTOM WIDGET
-import '../../widgets/activity_card.dart'; 
+import '../../widgets/activity_card.dart';
 
 class ActivityListScreen extends StatelessWidget {
   const ActivityListScreen({Key? key}) : super(key: key);
@@ -19,32 +18,21 @@ class ActivityListScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text("My Activity History"),
         centerTitle: true,
-        backgroundColor: Colors.teal,
+        // REMOVED: backgroundColor: Colors.teal
         elevation: 0,
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
-            onPressed: () async {
-              await AuthService().signOut();
-            },
+            onPressed: () async => await AuthService().signOut(),
           )
         ],
       ),
-      backgroundColor: Colors.grey[50], // Light background for contrast
+      // REMOVED: backgroundColor: Colors.grey[50]
       body: StreamBuilder<QuerySnapshot>(
         stream: DatabaseService().getUserData(uid),
         builder: (context, snapshot) {
-          // 1. Error State
-          if (snapshot.hasError) {
-            return Center(child: Text("Error: ${snapshot.error}"));
-          }
-
-          // 2. Loading State
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          // 3. Empty State
+          if (snapshot.hasError) return Center(child: Text("Error: ${snapshot.error}"));
+          if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
           if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
             return Center(
               child: Column(
@@ -52,19 +40,13 @@ class ActivityListScreen extends StatelessWidget {
                 children: [
                   Icon(Icons.history, size: 80, color: Colors.grey[300]),
                   const SizedBox(height: 15),
-                  const Text(
-                    "No activities found.\nStart by adding a new workout!",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.grey, fontSize: 16),
-                  ),
+                  const Text("No activities found.", style: TextStyle(color: Colors.grey, fontSize: 16)),
                 ],
               ),
             );
           }
 
-          // 4. Data List
           final documents = snapshot.data!.docs;
-          
           return ListView.builder(
             itemCount: documents.length,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -72,21 +54,17 @@ class ActivityListScreen extends StatelessWidget {
               final doc = documents[index];
               final data = doc.data() as Map<String, dynamic>;
 
-              // Using your new Custom ActivityCard Widget
               return ActivityCard(
-                title: data['type'] ?? 'Unknown Workout',
+                title: data['type'] ?? 'Unknown',
                 subtitle: "${data['duration']} mins",
                 calories: "${data['calories']} kcal",
-                icon: _getIconForType(data['type']), // Dynamic Icon logic
-                color: _getColorForType(data['type']), // Dynamic Color logic
+                icon: _getIconForType(data['type']),
+                color: _getColorForType(data['type']),
                 onTap: () {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => ActivityDetailScreen(
-                        docId: doc.id, 
-                        currentData: data
-                      ),
+                      builder: (context) => ActivityDetailScreen(docId: doc.id, currentData: data),
                     ),
                   );
                 },
@@ -97,13 +75,12 @@ class ActivityListScreen extends StatelessWidget {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => Navigator.pushNamed(context, '/add_activity'),
-        backgroundColor: Colors.teal,
+        backgroundColor: Colors.teal, // Floating buttons usually keep their accent color
         child: const Icon(Icons.add),
       ),
     );
   }
 
-  // Helper to pick a nice icon based on the workout name
   IconData _getIconForType(String? type) {
     final t = type?.toLowerCase() ?? '';
     if (t.contains('run')) return Icons.directions_run;
@@ -111,15 +88,14 @@ class ActivityListScreen extends StatelessWidget {
     if (t.contains('swim')) return Icons.pool;
     if (t.contains('bike') || t.contains('cycl')) return Icons.directions_bike;
     if (t.contains('yoga')) return Icons.self_improvement;
-    return Icons.fitness_center; // Default
+    return Icons.fitness_center;
   }
 
-  // Helper to pick a color based on workout type
   Color _getColorForType(String? type) {
     final t = type?.toLowerCase() ?? '';
     if (t.contains('run')) return Colors.orange;
     if (t.contains('swim')) return Colors.blue;
     if (t.contains('yoga')) return Colors.purple;
-    return Colors.teal; // Default
+    return Colors.teal;
   }
 }

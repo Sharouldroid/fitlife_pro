@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'firebase_options.dart'; // Ensure you have this file, or follow the note below
+import 'firebase_options.dart'; 
+
+// --- CONFIG ---
+import 'config/theme_manager.dart'; // REQUIRED: Import the theme manager we just made
 
 // --- AUTH SCREENS ---
 import 'screens/auth/login_screen.dart';
@@ -20,9 +23,7 @@ import 'screens/profile/body_metrics_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  // Initialize Firebase
-  // If you DO NOT have firebase_options.dart, remove 'options: ...' and just use await Firebase.initializeApp();
+  
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
@@ -35,41 +36,64 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'FitLife Pro',
-      debugShowCheckedModeBanner: false,
-      
-      // Theme Configuration
-      theme: ThemeData(
-        primarySwatch: Colors.teal,
-        visualDensity: VisualDensity.adaptivePlatformDensity,
-        fontFamily: 'Roboto',
-      ),
+    // WRAP EVERYTHING IN ValueListenableBuilder
+    // This listens to the themeNotifier variable. When it changes (true/false),
+    // the whole app rebuilds with the new mode!
+    return ValueListenableBuilder<bool>(
+      valueListenable: themeNotifier,
+      builder: (context, isDark, child) {
+        return MaterialApp(
+          title: 'FitLife Pro',
+          debugShowCheckedModeBanner: false,
+          
+          // 1. LIGHT THEME CONFIGURATION
+          theme: ThemeData(
+            primarySwatch: Colors.teal,
+            brightness: Brightness.light,
+            scaffoldBackgroundColor: Colors.grey[50],
+            appBarTheme: const AppBarTheme(
+              backgroundColor: Colors.teal,
+              foregroundColor: Colors.white,
+              elevation: 0,
+            ),
+            fontFamily: 'Roboto',
+          ),
+          
+          // 2. DARK THEME CONFIGURATION
+          darkTheme: ThemeData(
+            primarySwatch: Colors.teal,
+            brightness: Brightness.dark,
+            scaffoldBackgroundColor: const Color(0xFF121212), // Very dark grey
+            appBarTheme: AppBarTheme(
+              backgroundColor: Colors.grey[900],
+              foregroundColor: Colors.white,
+              elevation: 0,
+            ),
+            cardColor: Colors.grey[850],
+            dialogBackgroundColor: Colors.grey[800],
+            fontFamily: 'Roboto',
+          ),
 
-      // 1. Set the first screen to show (Splash)
-      initialRoute: '/splash',
+          // 3. ACTUAL SWITCH LOGIC
+          themeMode: isDark ? ThemeMode.dark : ThemeMode.light,
 
-      // 2. Define ALL your routes here in one place
-      routes: {
-        // Splash Screen (First Page)
-        '/splash': (context) => const SplashScreen(),
-
-        // The "Wrapper" decides if user goes to Dashboard or Login
-        '/': (context) => const LoginWrapper(),
-
-        // Auth Routes
-        '/login': (context) => const LoginScreen(),
-        '/register': (context) => const RegisterScreen(),
-
-        // Main App Routes
-        '/home': (context) => const DashboardScreen(),
-        '/activity_list': (context) => const ActivityListScreen(),
-        '/add_activity': (context) => const AddActivityScreen(),
-        
-        // Profile & Settings
-        '/profile': (context) => const ProfileScreen(),
-        '/settings': (context) => const SettingsScreen(),
-        '/body_metrics': (context) => const BodyMetricsScreen(),
+          // 4. ROUTES
+          initialRoute: '/splash',
+          routes: {
+            '/splash': (context) => const SplashScreen(),
+            '/': (context) => const LoginWrapper(),
+            '/login': (context) => const LoginScreen(),
+            '/register': (context) => const RegisterScreen(),
+            
+            '/home': (context) => const DashboardScreen(),
+            '/activity_list': (context) => const ActivityListScreen(),
+            '/add_activity': (context) => const AddActivityScreen(),
+            
+            '/profile': (context) => const ProfileScreen(),
+            '/settings': (context) => const SettingsScreen(),
+            '/body_metrics': (context) => const BodyMetricsScreen(),
+          },
+        );
       },
     );
   }
@@ -84,12 +108,9 @@ class LoginWrapper extends StatelessWidget {
     return StreamBuilder<User?>(
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
-        // If the snapshot has data, the user is logged in
         if (snapshot.hasData) {
           return const DashboardScreen(); 
-        } 
-        // Otherwise, they are logged out
-        else {
+        } else {
           return const LoginScreen();
         }
       },

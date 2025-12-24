@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+// IMPORT THE THEME MANAGER (Adjust path if your folder structure is different)
+import '../../config/theme_manager.dart'; 
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({Key? key}) : super(key: key);
@@ -8,15 +10,19 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
+  // Local state for notifications (dummy logic for now)
   bool _notifications = true;
-  bool _darkMode = false;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Settings"), backgroundColor: Colors.teal),
+      appBar: AppBar(
+        title: const Text("Settings"),
+        // Removing explicit backgroundColor lets it adapt to Dark Mode naturally
+      ),
       body: ListView(
         children: [
+          // 1. Notification Switch (Local State)
           SwitchListTile(
             title: const Text("Notifications"),
             subtitle: const Text("Receive daily workout reminders"),
@@ -24,18 +30,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
             activeColor: Colors.teal,
             onChanged: (val) => setState(() => _notifications = val),
           ),
-          SwitchListTile(
-            title: const Text("Dark Mode"),
-            subtitle: const Text("Reduce eye strain"),
-            value: _darkMode,
-            activeColor: Colors.teal,
-            onChanged: (val) => setState(() => _darkMode = val),
+
+          // 2. DARK MODE SWITCH (Global State)
+          // We wrap this tile in ValueListenableBuilder so it listens to the global theme
+          ValueListenableBuilder<bool>(
+            valueListenable: themeNotifier,
+            builder: (context, isDark, child) {
+              return SwitchListTile(
+                title: const Text("Dark Mode"),
+                subtitle: const Text("Reduce eye strain"),
+                value: isDark, // Value comes from the global variable
+                activeColor: Colors.teal,
+                onChanged: (val) {
+                  // This updates the global variable, triggering main.dart to rebuild!
+                  themeNotifier.value = val;
+                },
+              );
+            },
           ),
+          
           const Divider(),
-          ListTile(
-            leading: const Icon(Icons.info_outline),
-            title: const Text("About App"),
-            subtitle: const Text("Version 1.0.0 (Assignment 2)"),
+          
+          // 3. About Section
+          const ListTile(
+            leading: Icon(Icons.info_outline),
+            title: Text("About App"),
+            subtitle: Text("Version 1.0.0 (Assignment 2)"),
           ),
         ],
       ),

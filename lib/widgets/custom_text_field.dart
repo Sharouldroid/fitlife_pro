@@ -28,15 +28,20 @@ class CustomTextField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 1. DETECT DARK MODE
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Label Text
         Text(
           label,
-          style: const TextStyle(
+          style: TextStyle(
             fontWeight: FontWeight.w600,
             fontSize: 14,
-            color: Colors.black87,
+            // If Dark: Light Grey. If Light: Black.
+            color: isDark ? Colors.grey[300] : Colors.black87,
           ),
         ),
         const SizedBox(height: 8),
@@ -48,28 +53,47 @@ class CustomTextField extends StatelessWidget {
           maxLines: maxLines,
           readOnly: readOnly,
           onTap: onTap,
-          style: const TextStyle(fontSize: 16),
+          
+          // INPUT TEXT COLOR
+          style: TextStyle(
+            fontSize: 16, 
+            color: isDark ? Colors.white : Colors.black87
+          ),
+          
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
-            prefixIcon: Icon(prefixIcon, color: Colors.teal),
-            filled: true,
-            fillColor: Colors.grey[50],
-            contentPadding: const EdgeInsets.symmetric(vertical: 18, horizontal: 20),
-            
-            // Default Border
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Colors.grey.shade300, width: 1),
+            // Hint Text Color
+            hintStyle: TextStyle(
+              color: isDark ? Colors.grey[500] : Colors.grey[400], 
+              fontSize: 14
             ),
             
-            // Focused Border (When user types)
+            // Icon Color
+            prefixIcon: Icon(
+              prefixIcon, 
+              color: isDark ? Colors.tealAccent : Colors.teal
+            ),
+            
+            filled: true,
+            // BACKGROUND COLOR: Dark Grey in Dark Mode, White in Light Mode
+            fillColor: isDark ? Colors.grey[800] : Colors.grey[50],
+            
+            contentPadding: const EdgeInsets.symmetric(vertical: 18, horizontal: 20),
+            
+            // Borders
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(
+                color: isDark ? Colors.grey[700]! : Colors.grey.shade300, 
+                width: 1
+              ),
+            ),
+            
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: const BorderSide(color: Colors.teal, width: 2),
             ),
             
-            // Error Border
             errorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: const BorderSide(color: Colors.redAccent, width: 1.5),

@@ -11,26 +11,28 @@ class DashboardScreen extends StatelessWidget {
     final User? user = FirebaseAuth.instance.currentUser;
     final String uid = user?.uid ?? '';
 
+    // 1. CHECK IF DARK MODE IS ON
+    // We use this boolean to change text colors dynamically
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text("Dashboard"),
-        backgroundColor: Colors.teal,
+        // No hardcoded background color (handled by main.dart theme)
       ),
       drawer: _buildDrawer(context, user),
       body: StreamBuilder<QuerySnapshot>(
         stream: DatabaseService().getUserData(uid),
         builder: (context, snapshot) {
-          // 1. Loading State
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          // 2. Empty State
           if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
             return _buildEmptyState(context);
           }
 
-          // 3. Calculate Totals (SMART LOGIC)
+          // CALCULATE TOTALS
           final docs = snapshot.data!.docs;
           final int totalWorkouts = docs.length;
           double totalCalories = 0;
@@ -38,12 +40,9 @@ class DashboardScreen extends StatelessWidget {
 
           for (var doc in docs) {
             final data = doc.data() as Map<String, dynamic>;
-            
-            // --- CALORIES LOGIC ---
             String calString = data['calories'].toString().replaceAll(RegExp(r'[^0-9.]'), '');
             totalCalories += double.tryParse(calString) ?? 0;
 
-            // --- DURATION LOGIC (Minutes & Hours) ---
             String durRaw = data['duration'].toString().toLowerCase();
             String durNumber = durRaw.replaceAll(RegExp(r'[^0-9.]'), '');
             double val = double.tryParse(durNumber) ?? 0;
@@ -55,7 +54,6 @@ class DashboardScreen extends StatelessWidget {
             }
           }
 
-          // 4. Display Dashboard
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16.0),
             child: Column(
@@ -67,16 +65,15 @@ class DashboardScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 20),
                 
-                // Stat Cards
-                _buildStatCard("Workouts", "$totalWorkouts", Icons.directions_run, Colors.teal),
+                // PASS 'isDark' TO THE STAT CARDS
+                _buildStatCard("Workouts", "$totalWorkouts", Icons.directions_run, Colors.teal, isDark),
                 const SizedBox(height: 10),
-                _buildStatCard("Calories", "${totalCalories.toStringAsFixed(0)} kcal", Icons.local_fire_department, Colors.orange),
+                _buildStatCard("Calories", "${totalCalories.toStringAsFixed(0)} kcal", Icons.local_fire_department, Colors.orange, isDark),
                 const SizedBox(height: 10),
-                _buildStatCard("Duration", "$totalDuration mins", Icons.timer, Colors.blue),
+                _buildStatCard("Duration", "$totalDuration mins", Icons.timer, Colors.blue, isDark),
                 
                 const SizedBox(height: 30),
                 
-                // Action Button
                 ElevatedButton.icon(
                   onPressed: () => Navigator.pushNamed(context, '/add_activity'),
                   icon: const Icon(Icons.add),
@@ -113,10 +110,13 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildStatCard(String title, String value, IconData icon, Color color) {
+  // 2. UPDATED CARD FUNCTION
+  // We added 'bool isDark' as a parameter to control colors
+  Widget _buildStatCard(String title, String value, IconData icon, Color color, bool isDark) {
     return Card(
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      // Card color is handled automatically by theme, but we ensure text contrasts well:
       child: ListTile(
         contentPadding: const EdgeInsets.all(16),
         leading: CircleAvatar(
@@ -124,10 +124,19 @@ class DashboardScreen extends StatelessWidget {
           radius: 30,
           child: Icon(icon, size: 30, color: color),
         ),
-        title: Text(title, style: const TextStyle(color: Colors.grey)),
+        title: Text(
+          title, 
+          // If Dark Mode: Light Grey. If Light Mode: Dark Grey.
+          style: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey),
+        ),
         subtitle: Text(
           value, 
-          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black87)
+          // If Dark Mode: White. If Light Mode: Black.
+          style: TextStyle(
+            fontSize: 24, 
+            fontWeight: FontWeight.bold, 
+            color: isDark ? Colors.white : Colors.black87,
+          )
         ),
       ),
     );
@@ -147,38 +156,27 @@ class DashboardScreen extends StatelessWidget {
             ),
             decoration: const BoxDecoration(color: Colors.teal),
           ),
-          
-          // 1. History
           ListTile(
             leading: const Icon(Icons.list),
             title: const Text("History"),
             onTap: () => Navigator.pushNamed(context, '/activity_list'),
           ),
-
-          // 2. NEW: Body Metrics Tracker (Added Here)
           ListTile(
             leading: const Icon(Icons.monitor_weight),
             title: const Text("Body Metrics Tracker"),
             onTap: () => Navigator.pushNamed(context, '/body_metrics'),
           ),
-
-          // 3. Profile
           ListTile(
             leading: const Icon(Icons.person),
             title: const Text("Profile"),
             onTap: () => Navigator.pushNamed(context, '/profile'),
           ),
-
-          // 4. Settings
           ListTile(
             leading: const Icon(Icons.settings),
             title: const Text("Settings"),
             onTap: () => Navigator.pushNamed(context, '/settings'),
           ),
-          
           const Divider(),
-          
-          // 5. Logout
           ListTile(
             leading: const Icon(Icons.logout, color: Colors.red),
             title: const Text("Logout"),
