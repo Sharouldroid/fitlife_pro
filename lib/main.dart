@@ -13,6 +13,7 @@ import 'screens/auth/splash_screen.dart';
 
 // --- HOME & ACTIVITY SCREENS ---
 import 'screens/home/dashboard_screen.dart';
+import 'screens/home/notification_screen.dart';
 import 'screens/activity/activity_list_screen.dart';
 import 'screens/activity/add_activity_screen.dart';
 
@@ -86,6 +87,7 @@ class MyApp extends StatelessWidget {
             '/register': (context) => const RegisterScreen(),
             
             '/home': (context) => const DashboardScreen(),
+            '/notifications': (context) => const NotificationScreen(),
             '/activity_list': (context) => const ActivityListScreen(),
             '/add_activity': (context) => const AddActivityScreen(),
             

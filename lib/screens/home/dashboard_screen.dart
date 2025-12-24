@@ -172,6 +172,11 @@ class DashboardScreen extends StatelessWidget {
             onTap: () => Navigator.pushNamed(context, '/profile'),
           ),
           ListTile(
+            leading: const Icon(Icons.notifications),
+            title: const Text("Notifications"),
+            onTap: () => Navigator.pushNamed(context, '/notifications'),
+          ),
+          ListTile(
             leading: const Icon(Icons.settings),
             title: const Text("Settings"),
             onTap: () => Navigator.pushNamed(context, '/settings'),
