@@ -11,6 +11,12 @@ class NotificationScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Notifications"),
+        centerTitle: true,
+        elevation: 0,
+        // FIX: Teal in Light Mode, Transparent in Dark Mode
+        backgroundColor: isDark ? Colors.transparent : Colors.teal,
+        // FIX: Always White text (White on Teal looks best)
+        foregroundColor: Colors.white,
         // Color handled by Theme in main.dart
       ),
       // Background color handled by Theme

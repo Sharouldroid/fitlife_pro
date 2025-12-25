@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // Import Firestore
+import '../../services/database_service.dart'; // Import Database Service
+import '../../services/auth_service.dart'; 
 import 'edit_profile_screen.dart'; 
-import '../../services/auth_service.dart'; // To handle Logout
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({Key? key}) : super(key: key);
@@ -13,7 +15,6 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   final User? user = FirebaseAuth.instance.currentUser;
 
-  // Refresh user data when screen loads
   @override
   void initState() {
     super.initState();
@@ -22,18 +23,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _refreshUser() async {
     await user?.reload();
-    setState(() {}); // Rebuild UI with new data
+    if (mounted) setState(() {}); 
   }
 
   @override
   Widget build(BuildContext context) {
-    // Detect Dark Mode
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
     final Color textColor = isDark ? Colors.white : Colors.black87;
     final Color mutedColor = isDark ? Colors.grey[400]! : Colors.grey[600]!;
 
     return Scaffold(
-      // Allow the body to extend behind the AppBar for a modern look
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
@@ -48,12 +47,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // --- 1. HEADER SECTION (Gradient + Avatar) ---
+            // --- 1. HEADER SECTION ---
             Stack(
               clipBehavior: Clip.none,
               alignment: Alignment.center,
               children: [
-                // Background Gradient
                 Container(
                   height: 220,
                   width: double.infinity,
@@ -71,11 +69,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                   ),
                 ),
-                // Profile Picture
                 Positioned(
                   bottom: -50,
                   child: Container(
-                    padding: const EdgeInsets.all(4), // Border width
+                    padding: const EdgeInsets.all(4),
                     decoration: BoxDecoration(
                       color: Theme.of(context).scaffoldBackgroundColor,
                       shape: BoxShape.circle,
@@ -95,7 +92,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ],
             ),
             
-            const SizedBox(height: 60), // Space for the overlapping avatar
+            const SizedBox(height: 60),
 
             // --- 2. NAME & EMAIL ---
             Text(
@@ -114,7 +111,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             
             const SizedBox(height: 15),
 
-            // Edit Profile Chip
             ActionChip(
               label: const Text("Edit Profile"),
               avatar: const Icon(Icons.edit, size: 16),
@@ -122,18 +118,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
               labelStyle: const TextStyle(color: Colors.teal, fontWeight: FontWeight.bold),
               side: BorderSide.none,
               onPressed: () async {
-                // Navigate to Edit and wait for return
                 await Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => const EditProfileScreen()),
                 );
-                _refreshUser(); // Refresh name when coming back
+                _refreshUser();
               },
             ),
 
             const SizedBox(height: 30),
 
-            // --- 3. STATS CARD ---
+            // --- 3. STATS CARD (Updated Logic) ---
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Container(
@@ -153,10 +148,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
                     _buildStatItem("Friends", "12", isDark),
-                    Container(height: 40, width: 1, color: Colors.grey[300]), // Divider
+                    Container(height: 40, width: 1, color: Colors.grey[300]),
+                    
                     _buildStatItem("Plan", "Free", isDark),
-                    Container(height: 40, width: 1, color: Colors.grey[300]), // Divider
-                    _buildStatItem("Weight", "65kg", isDark),
+                    Container(height: 40, width: 1, color: Colors.grey[300]),
+                    
+                    // --- DYNAMIC WEIGHT ---
+                    StreamBuilder<QuerySnapshot>(
+                      // We reuse the existing service method.
+                      // Since it orders by descending timestamp, the first doc is the latest.
+                      stream: DatabaseService().getUserMetrics(user?.uid ?? ''),
+                      builder: (context, snapshot) {
+                        String weightText = "--";
+                        
+                        if (snapshot.hasData && snapshot.data!.docs.isNotEmpty) {
+                          final latestDoc = snapshot.data!.docs.first;
+                          final data = latestDoc.data() as Map<String, dynamic>;
+                          weightText = "${data['weight']}kg";
+                        }
+
+                        return _buildStatItem("Weight", weightText, isDark);
+                      },
+                    ),
                   ],
                 ),
               ),
@@ -175,7 +188,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             
             _buildMenuOption(context, "Log Out", Icons.logout, () async {
               await AuthService().signOut();
-              // Navigation is handled by the Auth Wrapper in main.dart
             }, isDark, isRed: true),
 
             const SizedBox(height: 40),
@@ -185,7 +197,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // Helper Widget for Stats
   Widget _buildStatItem(String label, String value, bool isDark) {
     return Column(
       children: [
@@ -209,7 +220,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // Helper Widget for Menu Options
   Widget _buildMenuOption(BuildContext context, String title, IconData icon, VoidCallback onTap, bool isDark, {bool isRed = false}) {
     Color iconColor = isRed ? Colors.redAccent : Colors.teal;
     Color textColor = isRed 

@@ -17,85 +17,118 @@ class DashboardScreen extends StatelessWidget {
         title: const Text("FitLife Pro"),
         centerTitle: true,
         elevation: 0,
-        backgroundColor: Colors.teal, // Transparent for modern look
-        foregroundColor: isDark ? Colors.teal : Colors.white, // Icon/Text color
+        backgroundColor: isDark ? Colors.transparent : Colors.teal,
+        foregroundColor: Colors.white,
       ),
       drawer: _buildDrawer(context, user),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: DatabaseService().getUserData(uid),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // --- 1. GREETING ---
+            Text(
+              "Hello, ${user?.displayName ?? 'Athlete'}! 👋",
+              style: TextStyle(
+                fontSize: 26,
+                fontWeight: FontWeight.bold,
+                color: isDark ? Colors.white : Colors.black87,
+              ),
+            ),
+            Text(
+              "Here is your daily summary.",
+              style: TextStyle(
+                fontSize: 16,
+                color: isDark ? Colors.grey[400] : Colors.grey[600],
+              ),
+            ),
+            
+            const SizedBox(height: 30),
 
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return _buildEmptyState(context);
-          }
-
-          // --- CALCULATE TOTALS ---
-          final docs = snapshot.data!.docs;
-          final int totalWorkouts = docs.length;
-          double totalCalories = 0;
-          int totalDuration = 0;
-
-          for (var doc in docs) {
-            final data = doc.data() as Map<String, dynamic>;
-            String calString = data['calories'].toString().replaceAll(RegExp(r'[^0-9.]'), '');
-            totalCalories += double.tryParse(calString) ?? 0;
-
-            String durRaw = data['duration'].toString().toLowerCase();
-            String durNumber = durRaw.replaceAll(RegExp(r'[^0-9.]'), '');
-            double val = double.tryParse(durNumber) ?? 0;
-
-            if (durRaw.contains('h')) {
-              totalDuration += (val * 60).toInt();
-            } else {
-              totalDuration += val.toInt();
-            }
-          }
-
-          // --- MAIN LAYOUT ---
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(20.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            // --- 2. STATS GRID ---
+            // We use a Column of Rows to create the 2x2 Grid effect
+            
+            // ROW 1: CALORIES & BMI
+            Row(
               children: [
-                // 1. GREETING HEADER
-                Text(
-                  "Hello, ${user?.displayName ?? 'Athlete'}! 👋",
-                  style: TextStyle(
-                    fontSize: 26,
-                    fontWeight: FontWeight.bold,
-                    color: isDark ? Colors.white : Colors.black87,
+                // CALORIES CARD (Stream 1: Activities)
+                Expanded(
+                  child: StreamBuilder<QuerySnapshot>(
+                    stream: DatabaseService().getUserData(uid),
+                    builder: (context, snapshot) {
+                      String calories = "0";
+                      if (snapshot.hasData) {
+                        double total = 0;
+                        for (var doc in snapshot.data!.docs) {
+                          var data = doc.data() as Map<String, dynamic>;
+                          total += double.tryParse(data['calories'].toString()) ?? 0;
+                        }
+                        calories = total.toStringAsFixed(0);
+                      }
+                      return _buildGradientCard(
+                        title: "Calories",
+                        value: "$calories kcal",
+                        icon: Icons.local_fire_department,
+                        colors: [Colors.orange.shade400, Colors.deepOrange.shade600],
+                        isSmall: true,
+                      );
+                    },
                   ),
                 ),
-                Text(
-                  "Here is your daily summary.",
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: isDark ? Colors.grey[400] : Colors.grey[600],
-                  ),
-                ),
+                const SizedBox(width: 15),
                 
-                const SizedBox(height: 30),
-
-                // 2. HERO CARD (Calories) - Uses Gradient
-                _buildGradientCard(
-                  title: "Calories Burned",
-                  value: "${totalCalories.toStringAsFixed(0)} kcal",
-                  icon: Icons.local_fire_department_rounded,
-                  colors: [Colors.orange.shade400, Colors.deepOrange.shade600],
+                // BMI CARD (Stream 2: Metrics)
+                Expanded(
+                  child: StreamBuilder<QuerySnapshot>(
+                    stream: DatabaseService().getUserMetrics(uid),
+                    builder: (context, snapshot) {
+                      String bmi = "--";
+                      if (snapshot.hasData && snapshot.data!.docs.isNotEmpty) {
+                        var latest = snapshot.data!.docs.first.data() as Map<String, dynamic>;
+                        bmi = latest['bmi'].toString();
+                      }
+                      return _buildGradientCard(
+                        title: "Current BMI",
+                        value: bmi,
+                        icon: Icons.monitor_weight,
+                        // Purple Gradient for BMI
+                        colors: [Colors.purple.shade300, Colors.purple.shade700],
+                        isSmall: true,
+                      );
+                    },
+                  ),
                 ),
+              ],
+            ),
 
-                const SizedBox(height: 20),
+            const SizedBox(height: 15),
 
-                // 3. ROW OF SMALLER CARDS
-                Row(
+            // ROW 2: WORKOUTS & DURATION
+            StreamBuilder<QuerySnapshot>(
+              stream: DatabaseService().getUserData(uid),
+              builder: (context, snapshot) {
+                // Default values
+                String workouts = "0";
+                String duration = "0 m";
+
+                if (snapshot.hasData) {
+                  var docs = snapshot.data!.docs;
+                  workouts = docs.length.toString();
+                  
+                  double totalDur = 0;
+                  for (var doc in docs) {
+                    var data = doc.data() as Map<String, dynamic>;
+                    totalDur += double.tryParse(data['duration'].toString()) ?? 0;
+                  }
+                  duration = "${totalDur.toStringAsFixed(0)} m";
+                }
+
+                return Row(
                   children: [
                     Expanded(
                       child: _buildGradientCard(
                         title: "Workouts",
-                        value: "$totalWorkouts",
+                        value: workouts,
                         icon: Icons.fitness_center,
                         colors: [Colors.teal.shade300, Colors.teal.shade700],
                         isSmall: true,
@@ -105,49 +138,49 @@ class DashboardScreen extends StatelessWidget {
                     Expanded(
                       child: _buildGradientCard(
                         title: "Duration",
-                        value: "$totalDuration m",
+                        value: duration,
                         icon: Icons.timer,
                         colors: [Colors.blue.shade300, Colors.blue.shade700],
                         isSmall: true,
                       ),
                     ),
                   ],
-                ),
-
-                const SizedBox(height: 40),
-
-                // 4. ACTION BUTTON
-                SizedBox(
-                  width: double.infinity,
-                  height: 55,
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.pushNamed(context, '/add_activity'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: isDark ? Colors.grey[800] : Colors.white,
-                      foregroundColor: Colors.teal,
-                      elevation: 5,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                      shadowColor: Colors.black26,
-                    ),
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.add_circle_outline, size: 28),
-                        SizedBox(width: 10),
-                        Text("Log New Activity", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
+                );
+              },
             ),
-          );
-        },
+
+            const SizedBox(height: 40),
+
+            // --- 3. ACTION BUTTON ---
+            SizedBox(
+              width: double.infinity,
+              height: 55,
+              child: ElevatedButton(
+                onPressed: () => Navigator.pushNamed(context, '/add_activity'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: isDark ? Colors.grey[800] : Colors.white,
+                  foregroundColor: Colors.teal,
+                  elevation: 5,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                  shadowColor: Colors.black26,
+                ),
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.add_circle_outline, size: 28),
+                    SizedBox(width: 10),
+                    Text("Log New Activity", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  // --- MODERN GRADIENT CARD ---
+  // --- MODERN CARD WIDGET ---
   Widget _buildGradientCard({
     required String title,
     required String value,
@@ -156,7 +189,7 @@ class DashboardScreen extends StatelessWidget {
     bool isSmall = false,
   }) {
     return Container(
-      height: isSmall ? 140 : 160,
+      height: 150, // Fixed height for uniformity in grid
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -168,8 +201,8 @@ class DashboardScreen extends StatelessWidget {
         boxShadow: [
           BoxShadow(
             color: colors.last.withOpacity(0.4),
-            blurRadius: 12,
-            offset: const Offset(0, 8),
+            blurRadius: 10,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
@@ -177,28 +210,29 @@ class DashboardScreen extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // Icon Box
           Container(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               color: Colors.white.withOpacity(0.2),
               shape: BoxShape.circle,
             ),
-            child: Icon(icon, color: Colors.white, size: isSmall ? 24 : 30),
+            child: Icon(icon, color: Colors.white, size: 24),
           ),
-          // Text Data
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                value,
-                style: TextStyle(
-                  fontSize: isSmall ? 24 : 32,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
                 ),
               ),
-              const SizedBox(height: 5),
+              const SizedBox(height: 4),
               Text(
                 title,
                 style: TextStyle(
@@ -214,37 +248,7 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  // --- EMPTY STATE ---
-  Widget _buildEmptyState(BuildContext context) {
-    final bool isDark = Theme.of(context).brightness == Brightness.dark;
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.dashboard_customize_outlined, size: 80, color: Colors.grey[400]),
-          const SizedBox(height: 20),
-          Text(
-            "Your Dashboard is Empty",
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87),
-          ),
-          const SizedBox(height: 10),
-          const Text("Start by adding your first workout!", style: TextStyle(color: Colors.grey)),
-          const SizedBox(height: 30),
-          ElevatedButton(
-            onPressed: () => Navigator.pushNamed(context, '/add_activity'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.teal,
-              padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-            ),
-            child: const Text("Start Tracking", style: TextStyle(fontSize: 16, color: Colors.white)),
-          )
-        ],
-      ),
-    );
-  }
-
-  // --- DRAWER (Unchanged logic, just clean) ---
+  // --- DRAWER (Standard) ---
   Widget _buildDrawer(BuildContext context, User? user) {
     return Drawer(
       child: ListView(

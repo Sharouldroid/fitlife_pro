@@ -48,8 +48,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Edit Profile"),
+        centerTitle: true,
         elevation: 0,
-        // Background handled by Theme
+        // FIX: Teal in Light Mode, Transparent in Dark Mode
+        backgroundColor: isDark ? Colors.transparent : Colors.teal,
+        // FIX: Always White text (White on Teal looks best)
+        foregroundColor: Colors.white,
       ),
       // Background handled by Theme
       body: SingleChildScrollView(

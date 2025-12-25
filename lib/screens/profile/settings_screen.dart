@@ -15,10 +15,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Scaffold(
       appBar: AppBar(
         title: const Text("Settings"),
-        // Removing explicit backgroundColor lets it adapt to Dark Mode naturally
+        centerTitle: true,
+        elevation: 0,
+        // FIX: Teal in Light Mode, Transparent in Dark Mode
+        backgroundColor: isDark ? Colors.transparent : Colors.teal,
+        // FIX: Always White text (White on Teal looks best)
+        foregroundColor: Colors.white,
+        
       ),
       body: ListView(
         children: [

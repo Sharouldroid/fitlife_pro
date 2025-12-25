@@ -32,11 +32,19 @@ class _AddActivityScreenState extends State<AddActivityScreen> {
 
   @override
   Widget build(BuildContext context) {
+    
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text("Add New Activity"),
-        // REMOVED: backgroundColor: Colors.teal (Now handled by Theme)
+        centerTitle: true,
+        
         elevation: 0,
+        // FIX: Teal in Light Mode, Transparent in Dark Mode
+        backgroundColor: isDark ? Colors.transparent : Colors.teal,
+        // FIX: Always White text (White on Teal looks best)
+        foregroundColor: Colors.white,
       ),
       // REMOVED: backgroundColor: Colors.grey[50]
       body: SingleChildScrollView(

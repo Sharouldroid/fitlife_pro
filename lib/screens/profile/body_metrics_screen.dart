@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:intl/intl.dart'; // Add intl package to pubspec.yaml if you want formatted dates
 import '../../services/database_service.dart';
+// IMPORT CUSTOM WIDGETS
+import '../../widgets/custom_button.dart';
+import '../../widgets/custom_text_field.dart';
 
 class BodyMetricsScreen extends StatefulWidget {
   const BodyMetricsScreen({Key? key}) : super(key: key);
@@ -14,28 +16,136 @@ class BodyMetricsScreen extends StatefulWidget {
 class _BodyMetricsScreenState extends State<BodyMetricsScreen> {
   final User? user = FirebaseAuth.instance.currentUser;
   
-  // Controllers for adding data
+  // Controllers
   final TextEditingController _weightController = TextEditingController();
-  final TextEditingController _heightController = TextEditingController(); // For BMI calc
+  final TextEditingController _heightController = TextEditingController(); 
   
-  // State for BMI Calculation
   String _calculatedBMI = "";
+  double _bmiValue = 0.0;
+  bool _isLoading = false;
+
+  @override
+  void dispose() {
+    _weightController.dispose();
+    _heightController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Body Metrics Tracker"),
-        backgroundColor: Colors.teal,
+        title: const Text("Body Metrics"),
+        centerTitle: true,
+        elevation: 0,
+        // FIX: Teal in Light Mode, Transparent in Dark Mode
+        backgroundColor: isDark ? Colors.transparent : Colors.teal,
+        // FIX: Always White text (White on Teal looks best)
+        foregroundColor: Colors.white,
       ),
       body: Column(
         children: [
-          // --- INPUT SECTION ---
-          _buildInputSection(),
+          // --- 1. INPUT SECTION (Floating Card) ---
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: isDark ? Colors.grey[850] : Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 15,
+                    offset: const Offset(0, 5),
+                  ),
+                ],
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: CustomTextField(
+                          controller: _weightController,
+                          label: "Weight (kg)",
+                          prefixIcon: Icons.monitor_weight_outlined,
+                          keyboardType: TextInputType.number,
+                        ),
+                      ),
+                      const SizedBox(width: 15),
+                      Expanded(
+                        child: CustomTextField(
+                          controller: _heightController,
+                          label: "Height (cm)",
+                          prefixIcon: Icons.height,
+                          keyboardType: TextInputType.number,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  CustomButton(
+                    text: "Calculate & Save",
+                    icon: Icons.calculate_outlined,
+                    isLoading: _isLoading,
+                    onPressed: _calculateAndSave,
+                  ),
+                  
+                  // BMI RESULT DISPLAY
+                  if (_calculatedBMI.isNotEmpty) ...[
+                    const SizedBox(height: 20),
+                    Container(
+                      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 20),
+                      decoration: BoxDecoration(
+                        color: _getBMIColor(_bmiValue).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: _getBMIColor(_bmiValue), width: 1),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.info_outline, color: _getBMIColor(_bmiValue)),
+                          const SizedBox(width: 10),
+                          Text(
+                            "BMI: $_calculatedBMI",
+                            style: TextStyle(
+                              fontSize: 18, 
+                              fontWeight: FontWeight.bold,
+                              color: _getBMIColor(_bmiValue),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ]
+                ],
+              ),
+            ),
+          ),
 
-          const Divider(thickness: 2),
+          // --- 2. HISTORY HEADER ---
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
+            child: Row(
+              children: [
+                Text(
+                  "History",
+                  style: TextStyle(
+                    fontSize: 18, 
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : Colors.black87,
+                  ),
+                ),
+                const Spacer(),
+                Icon(Icons.history, size: 18, color: isDark ? Colors.grey : Colors.grey[600]),
+              ],
+            ),
+          ),
 
-          // --- HISTORY LIST SECTION ---
+          // --- 3. HISTORY LIST ---
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
               stream: DatabaseService().getUserMetrics(user?.uid ?? ''),
@@ -44,37 +154,75 @@ class _BodyMetricsScreenState extends State<BodyMetricsScreen> {
                   return const Center(child: CircularProgressIndicator());
                 }
                 if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                  return const Center(child: Text("No logs yet. Add your weight above!"));
+                  return _buildEmptyState(isDark);
                 }
 
                 return ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
                   itemCount: snapshot.data!.docs.length,
                   itemBuilder: (context, index) {
                     var doc = snapshot.data!.docs[index];
                     var data = doc.data() as Map<String, dynamic>;
                     
-                    // Format Date (Optional)
+                    // Parse BMI for color coding
+                    double bmi = double.tryParse(data['bmi'].toString()) ?? 0;
+
+                    // Date formatting
                     String dateString = "Just now";
                     if (data['timestamp'] != null) {
                       DateTime date = (data['timestamp'] as Timestamp).toDate();
                       dateString = "${date.day}/${date.month}/${date.year}";
                     }
 
-                    return Card(
-                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      child: ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: Colors.teal.shade100,
-                          child: const Icon(Icons.monitor_weight, color: Colors.teal),
+                    // SWIPE TO DELETE
+                    return Dismissible(
+                      key: Key(doc.id),
+                      direction: DismissDirection.endToStart,
+                      background: Container(
+                        alignment: Alignment.centerRight,
+                        padding: const EdgeInsets.only(right: 20),
+                        margin: const EdgeInsets.symmetric(vertical: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.redAccent,
+                          borderRadius: BorderRadius.circular(16),
                         ),
-                        title: Text("${data['weight']} kg"),
-                        subtitle: Text("BMI: ${data['bmi']} | Date: $dateString"),
-                        trailing: IconButton(
-                          icon: const Icon(Icons.delete, color: Colors.red),
-                          onPressed: () => _confirmDelete(doc.id),
+                        child: const Icon(Icons.delete, color: Colors.white),
+                      ),
+                      onDismissed: (dir) async {
+                        await DatabaseService().deleteMetric(doc.id);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text("Entry deleted")),
+                        );
+                      },
+                      child: Card(
+                        elevation: 2,
+                        margin: const EdgeInsets.symmetric(vertical: 8),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        color: isDark ? Colors.grey[800] : Colors.white,
+                        child: ListTile(
+                          contentPadding: const EdgeInsets.all(12),
+                          leading: Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: _getBMIColor(bmi).withOpacity(0.1),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(Icons.speed, color: _getBMIColor(bmi)),
+                          ),
+                          title: Text(
+                            "${data['weight']} kg",
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 18,
+                              color: isDark ? Colors.white : Colors.black87,
+                            ),
+                          ),
+                          subtitle: Text(
+                            "BMI: ${data['bmi']}  •  $dateString",
+                            style: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey[600]),
+                          ),
+                          onTap: () => _showEditDialog(doc.id, data['weight'], data['bmi'], isDark),
                         ),
-                        // Tap to Edit
-                        onTap: () => _showEditDialog(doc.id, data['weight'], data['bmi']),
                       ),
                     );
                   },
@@ -87,134 +235,83 @@ class _BodyMetricsScreenState extends State<BodyMetricsScreen> {
     );
   }
 
-  Widget _buildInputSection() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      color: Colors.teal.withOpacity(0.05),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text("Log New Entry", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _weightController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: "Weight (kg)",
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.fitness_center),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: TextField(
-                  controller: _heightController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: "Height (cm)", // For auto BMI
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.height),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              icon: const Icon(Icons.add),
-              label: const Text("Calculate BMI & Save"),
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.teal),
-              onPressed: _calculateAndSave,
-            ),
-          ),
-          if (_calculatedBMI.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 8.0),
-              child: Text("Last Calculated BMI: $_calculatedBMI", 
-                style: const TextStyle(color: Colors.teal, fontWeight: FontWeight.bold)),
-            )
-        ],
-      ),
-    );
-  }
-
-  // --- LOGIC FUNCTIONS ---
-
-  void _calculateAndSave() async {
+  // --- LOGIC: Calculate & Save ---
+  Future<void> _calculateAndSave() async {
     if (_weightController.text.isEmpty || _heightController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Please enter Weight and Height")));
       return;
     }
 
-    // 1. Calculate BMI
-    double weight = double.parse(_weightController.text);
-    double heightCm = double.parse(_heightController.text);
-    double heightM = heightCm / 100;
-    double bmiVal = weight / (heightM * heightM);
-    String bmiString = bmiVal.toStringAsFixed(1);
+    setState(() => _isLoading = true);
 
-    setState(() => _calculatedBMI = bmiString);
-
-    // 2. Save to Firebase
-    if (user != null) {
-      await DatabaseService().addMetric(
-        uid: user!.uid,
-        weight: _weightController.text,
-        bmi: bmiString,
-      );
+    try {
+      double weight = double.parse(_weightController.text);
+      double heightCm = double.parse(_heightController.text);
+      double heightM = heightCm / 100;
+      double bmiVal = weight / (heightM * heightM);
       
-      // Clear inputs
-      _weightController.clear();
-      FocusScope.of(context).unfocus(); // Close keyboard
+      setState(() {
+        _bmiValue = bmiVal;
+        _calculatedBMI = bmiVal.toStringAsFixed(1);
+      });
+
+      if (user != null) {
+        await DatabaseService().addMetric(
+          uid: user!.uid,
+          weight: _weightController.text,
+          bmi: _calculatedBMI,
+        );
+        _weightController.clear();
+        FocusScope.of(context).unfocus();
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
+    } finally {
+      setState(() => _isLoading = false);
     }
   }
 
-  void _confirmDelete(String docId) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text("Delete Entry?"),
-        content: const Text("This cannot be undone."),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () async {
-              await DatabaseService().deleteMetric(docId);
-              Navigator.pop(ctx);
-            },
-            child: const Text("Delete"),
-          )
-        ],
-      ),
-    );
-  }
-
-  void _showEditDialog(String docId, String currentWeight, String currentBMI) {
+  // --- LOGIC: Edit Dialog ---
+  void _showEditDialog(String docId, String currentWeight, String currentBMI, bool isDark) {
     TextEditingController editWeightCtrl = TextEditingController(text: currentWeight);
     TextEditingController editBMICtrl = TextEditingController(text: currentBMI);
 
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text("Update Metric"),
+        backgroundColor: isDark ? Colors.grey[850] : Colors.white,
+        title: Text("Update Metric", style: TextStyle(color: isDark ? Colors.white : Colors.black)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(controller: editWeightCtrl, decoration: const InputDecoration(labelText: "Weight (kg)")),
+            TextField(
+              controller: editWeightCtrl, 
+              style: TextStyle(color: isDark ? Colors.white : Colors.black),
+              decoration: InputDecoration(
+                labelText: "Weight (kg)",
+                labelStyle: TextStyle(color: isDark ? Colors.grey : Colors.black54),
+                enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: isDark ? Colors.grey : Colors.black)),
+              )
+            ),
             const SizedBox(height: 10),
-            TextField(controller: editBMICtrl, decoration: const InputDecoration(labelText: "BMI (Manual)")),
+            TextField(
+              controller: editBMICtrl, 
+              style: TextStyle(color: isDark ? Colors.white : Colors.black),
+              decoration: InputDecoration(
+                labelText: "BMI (Manual)",
+                labelStyle: TextStyle(color: isDark ? Colors.grey : Colors.black54),
+                enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: isDark ? Colors.grey : Colors.black)),
+              )
+            ),
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx), 
+            child: const Text("Cancel", style: TextStyle(color: Colors.grey))
+          ),
           ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.teal),
             onPressed: () async {
               await DatabaseService().updateMetric(
                 docId: docId,
@@ -223,10 +320,30 @@ class _BodyMetricsScreenState extends State<BodyMetricsScreen> {
               );
               Navigator.pop(ctx);
             },
-            child: const Text("Update"),
+            child: const Text("Update", style: TextStyle(color: Colors.white)),
           )
         ],
       ),
     );
+  }
+
+  Widget _buildEmptyState(bool isDark) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.bar_chart, size: 70, color: Colors.grey[400]),
+          const SizedBox(height: 10),
+          Text("No logs yet.", style: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey[600])),
+        ],
+      ),
+    );
+  }
+
+  Color _getBMIColor(double bmi) {
+    if (bmi < 18.5) return Colors.blue; 
+    if (bmi < 25) return Colors.green;  
+    if (bmi < 30) return Colors.orange; 
+    return Colors.red;                  
   }
 }

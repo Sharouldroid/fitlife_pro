@@ -28,8 +28,12 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Activity Details"),
-        // Remove backgroundColor: Colors.teal so it uses Theme
+        centerTitle: true,
         elevation: 0,
+        // FIX: Teal in Light Mode, Transparent in Dark Mode
+        backgroundColor: isDark ? Colors.transparent : Colors.teal,
+        // FIX: Always White text (White on Teal looks best)
+        foregroundColor: Colors.white,
         actions: [
           IconButton(
             icon: const Icon(Icons.edit),
