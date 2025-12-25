@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:intl/intl.dart'; // 1. IMPORT INTL FOR DATE FORMATTING
 import '../../services/database_service.dart';
 import '../../services/auth_service.dart';
 import 'activity_detail_screen.dart';
@@ -29,9 +30,7 @@ class _ActivityListScreenState extends State<ActivityListScreen> {
         title: const Text("History"),
         centerTitle: true, 
         elevation: 0,
-        // FIX: Teal in Light Mode, Transparent in Dark Mode
         backgroundColor: isDark ? Colors.transparent : Colors.teal,
-        // FIX: Always White text (White on Teal looks best)
         foregroundColor: Colors.white,
         actions: [
           IconButton(
@@ -86,7 +85,7 @@ class _ActivityListScreenState extends State<ActivityListScreen> {
                   return _buildEmptyState(isDark);
                 }
 
-                // Filter Logic in Dart
+                // Filter Logic
                 var documents = snapshot.data!.docs;
                 if (_selectedFilter != 'All') {
                   documents = documents.where((doc) {
@@ -107,7 +106,17 @@ class _ActivityListScreenState extends State<ActivityListScreen> {
                     final doc = documents[index];
                     final data = doc.data() as Map<String, dynamic>;
 
-                    // 3. SWIPE TO DELETE (Modern UX)
+                    // --- DATE FORMATTING LOGIC ---
+                    String formattedDate = "";
+                    if (data['timestamp'] != null) {
+                      Timestamp t = data['timestamp'];
+                      // Creates format like: "Oct 24, 2025"
+                      formattedDate = DateFormat.yMMMd().format(t.toDate());
+                    } else {
+                      formattedDate = "Just now";
+                    }
+                    // -----------------------------
+
                     return Dismissible(
                       key: Key(doc.id),
                       direction: DismissDirection.endToStart,
@@ -145,7 +154,8 @@ class _ActivityListScreenState extends State<ActivityListScreen> {
                       },
                       child: ActivityCard(
                         title: data['type'] ?? 'Unknown',
-                        subtitle: "${data['duration']} mins",
+                        // UPDATED SUBTITLE: Shows Duration AND Date
+                        subtitle: "${data['duration']} mins  •  $formattedDate",
                         calories: "${data['calories']} kcal",
                         icon: _getIconForType(data['type']),
                         color: _getColorForType(data['type']),
@@ -170,7 +180,7 @@ class _ActivityListScreenState extends State<ActivityListScreen> {
         onPressed: () => Navigator.pushNamed(context, '/add_activity'),
         backgroundColor: Colors.teal,
         icon: const Icon(Icons.add),
-        label: const Text("New Entry"), // Extended FAB looks more premium
+        label: const Text("New Entry"),
       ),
     );
   }
@@ -193,7 +203,6 @@ class _ActivityListScreenState extends State<ActivityListScreen> {
     );
   }
 
-  // Helper Helpers
   IconData _getIconForType(String? type) {
     final t = type?.toLowerCase() ?? '';
     if (t.contains('run')) return Icons.directions_run;
