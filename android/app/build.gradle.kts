@@ -7,7 +7,7 @@ plugins {
 
 android {
     namespace = "com.example.fitlife_pro"
-    compileSdk = 34  // <--- CHANGED: Manually set to 34 to fix the error
+    compileSdk = 36  // <--- CHANGED: Manually set to 34 to fix the error
     ndkVersion = flutter.ndkVersion
 
     compileOptions {

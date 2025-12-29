@@ -1,6 +1,8 @@
+import 'dart:io'; // Needed for File handling
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-// IMPORT CUSTOM WIDGETS
+import 'package:firebase_storage/firebase_storage.dart'; // Storage
+import 'package:image_picker/image_picker.dart'; // Gallery Picker
 import '../../widgets/custom_button.dart';
 import '../../widgets/custom_text_field.dart';
 
@@ -21,28 +23,31 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   final User? user = FirebaseAuth.instance.currentUser;
   bool _isLoading = false;
+  File? _imageFile; // Variable to store the picked image locally
 
   @override
   void initState() {
     super.initState();
-    // Pre-fill existing data
     if (user != null) {
       _usernameController.text = user!.displayName ?? '';
       _emailController.text = user!.email ?? '';
     }
   }
 
-  @override
-  void dispose() {
-    _usernameController.dispose();
-    _emailController.dispose();
-    _passwordController.dispose();
-    super.dispose();
+  // --- 1. FUNCTION TO PICK IMAGE ---
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+
+    if (pickedFile != null) {
+      setState(() {
+        _imageFile = File(pickedFile.path);
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    // Detect Dark Mode for specific UI tweaks (like the Avatar bg)
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
@@ -50,56 +55,56 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         title: const Text("Edit Profile"),
         centerTitle: true,
         elevation: 0,
-        // FIX: Teal in Light Mode, Transparent in Dark Mode
         backgroundColor: isDark ? Colors.transparent : Colors.teal,
-        // FIX: Always White text (White on Teal looks best)
         foregroundColor: Colors.white,
       ),
-      // Background handled by Theme
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20.0),
         child: Form(
           key: _formKey,
           child: Column(
             children: [
-              // --- 1. PROFILE PICTURE SECTION ---
+              // --- 2. PROFILE PICTURE WITH TAP ACTION ---
               Center(
-                child: Stack(
-                  children: [
-                    CircleAvatar(
-                      radius: 50,
-                      backgroundColor: isDark ? Colors.grey[800] : Colors.grey[200],
-                      // If user has a photoURL, show it, else show Icon
-                      backgroundImage: user?.photoURL != null 
-                          ? NetworkImage(user!.photoURL!) 
-                          : null,
-                      child: user?.photoURL == null
-                          ? Icon(Icons.person, size: 50, color: Colors.grey[400])
-                          : null,
-                    ),
-                    Positioned(
-                      bottom: 0,
-                      right: 0,
-                      child: Container(
-                        height: 35,
-                        width: 35,
-                        decoration: BoxDecoration(
-                          color: Colors.teal,
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: Theme.of(context).scaffoldBackgroundColor, 
-                            width: 3
-                          ),
-                        ),
-                        child: const Icon(Icons.camera_alt, color: Colors.white, size: 18),
+                child: GestureDetector(
+                  onTap: _pickImage, // Tap avatar to pick image
+                  child: Stack(
+                    children: [
+                      CircleAvatar(
+                        radius: 60,
+                        backgroundColor: isDark ? Colors.grey[800] : Colors.grey[200],
+                        // Logic: Show Local File if picked, else show Network URL, else Icon
+                        backgroundImage: _imageFile != null
+                            ? FileImage(_imageFile!) as ImageProvider
+                            : (user?.photoURL != null ? NetworkImage(user!.photoURL!) : null),
+                        child: (_imageFile == null && user?.photoURL == null)
+                            ? Icon(Icons.person, size: 60, color: Colors.grey[400])
+                            : null,
                       ),
-                    ),
-                  ],
+                      Positioned(
+                        bottom: 0,
+                        right: 0,
+                        child: Container(
+                          height: 40,
+                          width: 40,
+                          decoration: BoxDecoration(
+                            color: Colors.teal,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: Theme.of(context).scaffoldBackgroundColor, 
+                              width: 3
+                            ),
+                          ),
+                          child: const Icon(Icons.camera_alt, color: Colors.white, size: 20),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
               const SizedBox(height: 30),
 
-              // --- 2. USERNAME FIELD ---
+              // --- INPUT FIELDS (Same as before) ---
               CustomTextField(
                 controller: _usernameController,
                 label: "Username",
@@ -108,7 +113,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               ),
               const SizedBox(height: 20),
 
-              // --- 3. EMAIL FIELD ---
               CustomTextField(
                 controller: _emailController,
                 label: "Email Address",
@@ -117,7 +121,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               ),
               const SizedBox(height: 20),
 
-              // --- 4. PASSWORD FIELD ---
               CustomTextField(
                 controller: _passwordController,
                 label: "New Password",
@@ -130,7 +133,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               ),
               const SizedBox(height: 40),
 
-              // --- 5. SAVE BUTTON ---
               CustomButton(
                 text: "Save Changes",
                 isLoading: _isLoading,
@@ -144,30 +146,49 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     );
   }
 
-  // --- UPDATE LOGIC ---
+  // --- 3. UPDATE LOGIC WITH STORAGE UPLOAD ---
   Future<void> _updateProfile() async {
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
       try {
         bool changed = false;
 
-        // 1. Update Display Name
+        // A. UPLOAD IMAGE IF SELECTED
+        if (_imageFile != null) {
+          // 1. Create a reference to Firebase Storage
+          final storageRef = FirebaseStorage.instance
+              .ref()
+              .child('user_profiles')
+              .child('${user!.uid}.jpg');
+
+          // 2. Upload the file
+          await storageRef.putFile(_imageFile!);
+
+          // 3. Get the Download URL
+          final String downloadUrl = await storageRef.getDownloadURL();
+
+          // 4. Update User Profile with new URL
+          await user?.updatePhotoURL(downloadUrl);
+          changed = true;
+        }
+
+        // B. Update Display Name
         if (_usernameController.text != user?.displayName) {
           await user?.updateDisplayName(_usernameController.text);
           changed = true;
         }
 
-        // 2. Update Email
+        // C. Update Email
         if (_emailController.text != user?.email) {
           await user?.verifyBeforeUpdateEmail(_emailController.text);
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Verification email sent to new address.")),
+            const SnackBar(content: Text("Verification email sent.")),
           );
           changed = true;
         }
 
-        // 3. Update Password
+        // D. Update Password
         if (_passwordController.text.isNotEmpty) {
           await user?.updatePassword(_passwordController.text);
           changed = true;
@@ -177,82 +198,18 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
         if (changed || _passwordController.text.isNotEmpty) {
            if(!mounted) return;
-          _showSuccessDialog();
+           Navigator.pop(context); 
         } else {
            if(!mounted) return;
-           Navigator.pop(context); // Nothing changed, just go back
+           Navigator.pop(context);
         }
 
       } catch (e) {
         setState(() => _isLoading = false);
-        // Handle "Requires Recent Login" error specifically if needed
-        String message = "Error updating profile: ${e.toString()}";
-        if (e.toString().contains('requires-recent-login')) {
-          message = "For security, please log out and log in again to change sensitive info.";
-        }
-        
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(message), backgroundColor: Colors.red),
+          SnackBar(content: Text("Error: ${e.toString()}")),
         );
       }
     }
-  }
-
-  // --- SUCCESS DIALOG ---
-  void _showSuccessDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          elevation: 0,
-          backgroundColor: Colors.transparent, // Handled by container
-          child: Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Theme.of(context).cardColor, // Adapts to Dark Mode
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const CircleAvatar(
-                  backgroundColor: Colors.green,
-                  radius: 40,
-                  child: Icon(Icons.check, size: 50, color: Colors.white),
-                ),
-                const SizedBox(height: 20),
-                const Text(
-                  "Profile Updated!",
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  "Your changes have been saved successfully.",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.grey[600]),
-                ),
-                const SizedBox(height: 25),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.teal,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    ),
-                    onPressed: () {
-                      Navigator.of(context).pop(); // Close Dialog
-                      Navigator.of(context).pop(); // Go back to Profile Page
-                    },
-                    child: const Text("OK", style: TextStyle(color: Colors.white)),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
   }
 }
