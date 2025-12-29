@@ -134,7 +134,7 @@ class DashboardScreen extends StatelessWidget {
                   stream: DatabaseService().getUserData(uid),
                   builder: (context, snapshot) {
                     String workouts = "0";
-                    String duration = "0 m";
+                    String duration = "0 min";
                     if (snapshot.hasData) {
                       var docs = snapshot.data!.docs;
                       workouts = docs.length.toString();
@@ -143,7 +143,7 @@ class DashboardScreen extends StatelessWidget {
                         var data = doc.data() as Map<String, dynamic>;
                         totalDur += double.tryParse(data['duration'].toString()) ?? 0;
                       }
-                      duration = "${totalDur.toStringAsFixed(0)} m";
+                      duration = "${totalDur.toStringAsFixed(0)} min";
                     }
                     return Row(
                       children: [

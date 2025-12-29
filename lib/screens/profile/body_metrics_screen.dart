@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../services/database_service.dart';
-// IMPORT CUSTOM WIDGETS
 import '../../widgets/custom_button.dart';
 import '../../widgets/custom_text_field.dart';
 
@@ -16,7 +15,6 @@ class BodyMetricsScreen extends StatefulWidget {
 class _BodyMetricsScreenState extends State<BodyMetricsScreen> {
   final User? user = FirebaseAuth.instance.currentUser;
   
-  // Controllers
   final TextEditingController _weightController = TextEditingController();
   final TextEditingController _heightController = TextEditingController(); 
   
@@ -40,14 +38,12 @@ class _BodyMetricsScreenState extends State<BodyMetricsScreen> {
         title: const Text("Body Metrics"),
         centerTitle: true,
         elevation: 0,
-        // FIX: Teal in Light Mode, Transparent in Dark Mode
         backgroundColor: isDark ? Colors.transparent : Colors.teal,
-        // FIX: Always White text (White on Teal looks best)
         foregroundColor: Colors.white,
       ),
       body: Column(
         children: [
-          // --- 1. INPUT SECTION (Floating Card) ---
+          // --- INPUT SECTION ---
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Container(
@@ -94,7 +90,7 @@ class _BodyMetricsScreenState extends State<BodyMetricsScreen> {
                     onPressed: _calculateAndSave,
                   ),
                   
-                  // BMI RESULT DISPLAY
+                  // LAST CALCULATION DISPLAY
                   if (_calculatedBMI.isNotEmpty) ...[
                     const SizedBox(height: 20),
                     Container(
@@ -109,13 +105,24 @@ class _BodyMetricsScreenState extends State<BodyMetricsScreen> {
                         children: [
                           Icon(Icons.info_outline, color: _getBMIColor(_bmiValue)),
                           const SizedBox(width: 10),
-                          Text(
-                            "BMI: $_calculatedBMI",
-                            style: TextStyle(
-                              fontSize: 18, 
-                              fontWeight: FontWeight.bold,
-                              color: _getBMIColor(_bmiValue),
-                            ),
+                          Column(
+                            children: [
+                              Text(
+                                "BMI: $_calculatedBMI",
+                                style: TextStyle(
+                                  fontSize: 18, 
+                                  fontWeight: FontWeight.bold,
+                                  color: _getBMIColor(_bmiValue),
+                                ),
+                              ),
+                              Text(
+                                _getBMICategory(_bmiValue),
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: _getBMIColor(_bmiValue),
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
@@ -126,7 +133,7 @@ class _BodyMetricsScreenState extends State<BodyMetricsScreen> {
             ),
           ),
 
-          // --- 2. HISTORY HEADER ---
+          // --- HISTORY HEADER ---
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
             child: Row(
@@ -145,7 +152,7 @@ class _BodyMetricsScreenState extends State<BodyMetricsScreen> {
             ),
           ),
 
-          // --- 3. HISTORY LIST ---
+          // --- HISTORY LIST ---
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
               stream: DatabaseService().getUserMetrics(user?.uid ?? ''),
@@ -164,8 +171,8 @@ class _BodyMetricsScreenState extends State<BodyMetricsScreen> {
                     var doc = snapshot.data!.docs[index];
                     var data = doc.data() as Map<String, dynamic>;
                     
-                    // Parse BMI for color coding
                     double bmi = double.tryParse(data['bmi'].toString()) ?? 0;
+                    String category = _getBMICategory(bmi);
 
                     // Date formatting
                     String dateString = "Just now";
@@ -174,7 +181,6 @@ class _BodyMetricsScreenState extends State<BodyMetricsScreen> {
                       dateString = "${date.day}/${date.month}/${date.year}";
                     }
 
-                    // SWIPE TO DELETE
                     return Dismissible(
                       key: Key(doc.id),
                       direction: DismissDirection.endToStart,
@@ -218,9 +224,10 @@ class _BodyMetricsScreenState extends State<BodyMetricsScreen> {
                             ),
                           ),
                           subtitle: Text(
-                            "BMI: ${data['bmi']}  •  $dateString",
+                            "BMI: ${data['bmi']} ($category)\n$dateString",
                             style: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey[600]),
                           ),
+                          isThreeLine: true, // Allow subtitle to wrap
                           onTap: () => _showEditDialog(doc.id, data['weight'], data['bmi'], isDark),
                         ),
                       ),
@@ -235,12 +242,15 @@ class _BodyMetricsScreenState extends State<BodyMetricsScreen> {
     );
   }
 
-  // --- LOGIC: Calculate & Save ---
+  // --- LOGIC: Calculate, Show Popup & Save ---
   Future<void> _calculateAndSave() async {
     if (_weightController.text.isEmpty || _heightController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Please enter Weight and Height")));
       return;
     }
+
+    // Hide keyboard
+    FocusScope.of(context).unfocus();
 
     setState(() => _isLoading = true);
 
@@ -249,26 +259,85 @@ class _BodyMetricsScreenState extends State<BodyMetricsScreen> {
       double heightCm = double.parse(_heightController.text);
       double heightM = heightCm / 100;
       double bmiVal = weight / (heightM * heightM);
+      String bmiString = bmiVal.toStringAsFixed(1);
       
       setState(() {
         _bmiValue = bmiVal;
-        _calculatedBMI = bmiVal.toStringAsFixed(1);
+        _calculatedBMI = bmiString;
       });
 
+      // 1. SHOW POPUP RESULT
+      await _showBMIResultDialog(bmiVal, bmiString);
+
+      // 2. SAVE TO DB
       if (user != null) {
         await DatabaseService().addMetric(
           uid: user!.uid,
           weight: _weightController.text,
-          bmi: _calculatedBMI,
+          bmi: bmiString,
         );
         _weightController.clear();
-        FocusScope.of(context).unfocus();
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
     } finally {
       setState(() => _isLoading = false);
     }
+  }
+
+  // --- NEW POPUP DIALOG ---
+  Future<void> _showBMIResultDialog(double bmi, String bmiString) async {
+    String category = _getBMICategory(bmi);
+    Color color = _getBMIColor(bmi);
+    String advice = _getBMIAdvice(bmi);
+
+    return showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Center(child: Text("BMI Result", style: TextStyle(fontWeight: FontWeight.bold))),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: color.withOpacity(0.1),
+              ),
+              child: Text(
+                bmiString,
+                style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: color),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              category.toUpperCase(),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              advice,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 14, color: Colors.grey),
+            ),
+          ],
+        ),
+        actions: [
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: color,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text("Save to History", style: TextStyle(color: Colors.white)),
+            ),
+          )
+        ],
+      ),
+    );
   }
 
   // --- LOGIC: Edit Dialog ---
@@ -340,10 +409,25 @@ class _BodyMetricsScreenState extends State<BodyMetricsScreen> {
     );
   }
 
+  // --- BMI HELPERS ---
+  String _getBMICategory(double bmi) {
+    if (bmi < 18.5) return "Underweight";
+    if (bmi < 25) return "Normal Weight";
+    if (bmi < 30) return "Overweight";
+    return "Obese";
+  }
+
   Color _getBMIColor(double bmi) {
     if (bmi < 18.5) return Colors.blue; 
     if (bmi < 25) return Colors.green;  
     if (bmi < 30) return Colors.orange; 
     return Colors.red;                  
+  }
+
+  String _getBMIAdvice(double bmi) {
+    if (bmi < 18.5) return "You might need to eat more nutrient-rich foods.";
+    if (bmi < 25) return "Great job! Keep maintaining your healthy lifestyle.";
+    if (bmi < 30) return "Consider a balanced diet and regular exercise.";
+    return "Consult a doctor for a personalized health plan.";
   }
 }

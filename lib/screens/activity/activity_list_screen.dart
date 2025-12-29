@@ -17,7 +17,7 @@ class ActivityListScreen extends StatefulWidget {
 class _ActivityListScreenState extends State<ActivityListScreen> {
   // State for filtering
   String _selectedFilter = 'All';
-  final List<String> _filters = ['All', 'Running', 'Cycling', 'Swimming', 'Weights', 'Football'];
+  final List<String> _filters = ['All', 'Running', 'Cycling', 'Swimming', 'Weights', 'Football','Walk'];
 
   @override
   Widget build(BuildContext context) {
@@ -220,6 +220,8 @@ class _ActivityListScreenState extends State<ActivityListScreen> {
     if (t.contains('swim')) return Colors.blue;
     if (t.contains('football')) return Colors.purple;
     if (t.contains('weight')) return Colors.redAccent;
+    if (t.contains('walk'))return Colors.brown;
+    if (t.contains('bike') || t.contains('cycl')) return Colors.pinkAccent;
     return Colors.teal;
   }
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../services/database_service.dart';
 import '../../widgets/custom_button.dart';
 import '../../widgets/custom_text_field.dart';
@@ -20,6 +21,59 @@ class _AddActivityScreenState extends State<AddActivityScreen> {
   final TextEditingController _notesController = TextEditingController();
 
   bool _isLoading = false;
+  double _userWeight = 70.0; // Default fallback weight (kg)
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchUserWeight();
+    
+    // Add listeners to auto-calculate when inputs change
+    _durationController.addListener(_calculateCalories);
+    _typeController.addListener(_calculateCalories);
+  }
+
+  // 1. FETCH USER WEIGHT FROM DB
+  Future<void> _fetchUserWeight() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      final snapshot = await DatabaseService().getUserMetrics(user.uid).first;
+      if (snapshot.docs.isNotEmpty) {
+        final data = snapshot.docs.first.data() as Map<String, dynamic>;
+        setState(() {
+          // Parse weight safely (handle string or number)
+          _userWeight = double.tryParse(data['weight'].toString()) ?? 70.0;
+        });
+      }
+    }
+  }
+
+  // 2. AUTO-CALCULATE LOGIC
+  void _calculateCalories() {
+    final durationText = _durationController.text;
+    final typeText = _typeController.text.toLowerCase();
+
+    if (durationText.isEmpty) return;
+
+    final double duration = double.tryParse(durationText) ?? 0;
+    
+    // Determine MET Value based on keywords
+    double met = 4.0; // Default "Moderate Activity"
+    if (typeText.contains('run') || typeText.contains('jog')) met = 9.8;
+    else if (typeText.contains('cycl') || typeText.contains('bike')) met = 7.5;
+    else if (typeText.contains('swim')) met = 8.0;
+    else if (typeText.contains('weight') || typeText.contains('gym') || typeText.contains('lift')) met = 5.0;
+    else if (typeText.contains('walk')) met = 3.8;
+    else if (typeText.contains('yoga')) met = 2.5;
+    else if (typeText.contains('football') || typeText.contains('soccer')) met = 8.0;
+
+    // Formula: (MET * 3.5 * Weight) / 200 * Duration
+    final double caloriesBurned = (met * 3.5 * _userWeight) / 200 * duration;
+
+    // Update the text field (only if user hasn't manually edited it recently? 
+    // For simplicity, we just update it constantly as they type duration/type)
+    _caloriesController.text = caloriesBurned.toStringAsFixed(0);
+  }
 
   @override
   void dispose() {
@@ -32,21 +86,16 @@ class _AddActivityScreenState extends State<AddActivityScreen> {
 
   @override
   Widget build(BuildContext context) {
-    
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text("Add New Activity"),
         centerTitle: true,
-        
         elevation: 0,
-        // FIX: Teal in Light Mode, Transparent in Dark Mode
         backgroundColor: isDark ? Colors.transparent : Colors.teal,
-        // FIX: Always White text (White on Teal looks best)
         foregroundColor: Colors.white,
       ),
-      // REMOVED: backgroundColor: Colors.grey[50]
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20.0),
         child: Form(
@@ -62,6 +111,7 @@ class _AddActivityScreenState extends State<AddActivityScreen> {
                 validator: (val) => val!.isEmpty ? "Please enter a type" : null,
               ),
               const SizedBox(height: 20),
+              
               CustomTextField(
                 controller: _durationController,
                 label: "Duration (minutes)",
@@ -71,15 +121,18 @@ class _AddActivityScreenState extends State<AddActivityScreen> {
                 validator: (val) => val!.isEmpty ? "Please enter duration" : null,
               ),
               const SizedBox(height: 20),
+              
+              // This field is now auto-calculated but editable
               CustomTextField(
                 controller: _caloriesController,
-                label: "Calories Burned",
-                hint: "e.g. 250",
+                label: "Calories Burned (Est.)",
+                hint: "Auto-calculated",
                 prefixIcon: Icons.local_fire_department,
                 keyboardType: TextInputType.number,
                 validator: (val) => val!.isEmpty ? "Please enter calories" : null,
               ),
               const SizedBox(height: 20),
+              
               CustomTextField(
                 controller: _notesController,
                 label: "Notes (Optional)",
@@ -88,6 +141,7 @@ class _AddActivityScreenState extends State<AddActivityScreen> {
                 maxLines: 3,
               ),
               const SizedBox(height: 35),
+              
               CustomButton(
                 text: "Save Activity",
                 isLoading: _isLoading,
@@ -102,6 +156,9 @@ class _AddActivityScreenState extends State<AddActivityScreen> {
   }
 
   Future<void> _saveActivity() async {
+    // Unfocus keyboard before saving
+    FocusScope.of(context).unfocus();
+
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
       try {
@@ -121,7 +178,8 @@ class _AddActivityScreenState extends State<AddActivityScreen> {
       } catch (e) {
         if (!mounted) return;
         setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red));
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red));
       }
     }
   }
@@ -152,12 +210,11 @@ class _AddActivityScreenState extends State<AddActivityScreen> {
                   width: double.infinity,
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.teal, // Keep button Teal as an accent
+                      backgroundColor: Colors.teal,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     ),
                     onPressed: () {
-                      Navigator.of(context).pop(); // Close Dialog
-                      // REDIRECT TO DASHBOARD
+                      Navigator.of(context).pop(); 
                       Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false);
                     },
                     child: const Text("OK", style: TextStyle(color: Colors.white)),
