@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:intl/intl.dart'; // 1. IMPORT INTL FOR DATE FORMATTING
+import 'package:intl/intl.dart'; 
 import '../../services/database_service.dart';
 import '../../services/auth_service.dart';
 import 'activity_detail_screen.dart';
@@ -15,9 +15,23 @@ class ActivityListScreen extends StatefulWidget {
 }
 
 class _ActivityListScreenState extends State<ActivityListScreen> {
-  // State for filtering
+  // --- 1. UPDATED FILTERS TO MATCH YOUR DROPDOWN ---
   String _selectedFilter = 'All';
-  final List<String> _filters = ['All', 'Running', 'Cycling', 'Swimming', 'Weights', 'Football','Walk'];
+  
+  // Note: We use "Weight" (singular) to match "Weight Lifting"
+  // We use "Walking" to match "Walking (Brisk)"
+  final List<String> _filters = [
+    'All', 
+    'Running', 
+    'Cycling', 
+    'Swimming', 
+    'Weight', 
+    'Walking', 
+    'Yoga', 
+    'HIIT', 
+    'Sports', 
+    'Other'
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -32,16 +46,10 @@ class _ActivityListScreenState extends State<ActivityListScreen> {
         elevation: 0,
         backgroundColor: isDark ? Colors.transparent : Colors.teal,
         foregroundColor: Colors.white,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () async => await AuthService().signOut(),
-          )
-        ],
       ),
       body: Column(
         children: [
-          // 1. HORIZONTAL FILTER CHIPS
+          // 2. HORIZONTAL FILTER CHIPS
           Container(
             height: 60,
             padding: const EdgeInsets.symmetric(vertical: 10),
@@ -72,7 +80,7 @@ class _ActivityListScreenState extends State<ActivityListScreen> {
             ),
           ),
 
-          // 2. ACTIVITY LIST
+          // 3. ACTIVITY LIST
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
               stream: DatabaseService().getUserData(uid),
@@ -91,6 +99,7 @@ class _ActivityListScreenState extends State<ActivityListScreen> {
                   documents = documents.where((doc) {
                     final data = doc.data() as Map<String, dynamic>;
                     final type = data['type'].toString().toLowerCase();
+                    // This simple check works because "Running (Fast)" contains "Running"
                     return type.contains(_selectedFilter.toLowerCase());
                   }).toList();
                 }
@@ -106,16 +115,14 @@ class _ActivityListScreenState extends State<ActivityListScreen> {
                     final doc = documents[index];
                     final data = doc.data() as Map<String, dynamic>;
 
-                    // --- DATE FORMATTING LOGIC ---
+                    // Date Formatting
                     String formattedDate = "";
                     if (data['timestamp'] != null) {
                       Timestamp t = data['timestamp'];
-                      // Creates format like: "Oct 24, 2025"
                       formattedDate = DateFormat.yMMMd().format(t.toDate());
                     } else {
                       formattedDate = "Just now";
                     }
-                    // -----------------------------
 
                     return Dismissible(
                       key: Key(doc.id),
@@ -154,9 +161,9 @@ class _ActivityListScreenState extends State<ActivityListScreen> {
                       },
                       child: ActivityCard(
                         title: data['type'] ?? 'Unknown',
-                        // UPDATED SUBTITLE: Shows Duration AND Date
                         subtitle: "${data['duration']} mins  •  $formattedDate",
                         calories: "${data['calories']} kcal",
+                        // Dynamic Icons and Colors based on your new types
                         icon: _getIconForType(data['type']),
                         color: _getColorForType(data['type']),
                         onTap: () {
@@ -203,6 +210,7 @@ class _ActivityListScreenState extends State<ActivityListScreen> {
     );
   }
 
+  // --- 4. UPDATED ICONS FOR NEW TYPES ---
   IconData _getIconForType(String? type) {
     final t = type?.toLowerCase() ?? '';
     if (t.contains('run')) return Icons.directions_run;
@@ -210,18 +218,23 @@ class _ActivityListScreenState extends State<ActivityListScreen> {
     if (t.contains('swim')) return Icons.pool;
     if (t.contains('bike') || t.contains('cycl')) return Icons.directions_bike;
     if (t.contains('weight') || t.contains('lift') || t.contains('gym')) return Icons.fitness_center;
-    if (t.contains('football')) return Icons.sports_soccer;
-    return Icons.bolt; 
+    if (t.contains('sports') || t.contains('soccer') || t.contains('football')) return Icons.sports_soccer;
+    if (t.contains('yoga')) return Icons.self_improvement; // Yoga Icon
+    if (t.contains('hiit')) return Icons.timer_outlined;   // HIIT Icon
+    return Icons.bolt; // 'Other'
   }
 
+  // --- 5. UPDATED COLORS FOR NEW TYPES ---
   Color _getColorForType(String? type) {
     final t = type?.toLowerCase() ?? '';
     if (t.contains('run')) return Colors.orange;
     if (t.contains('swim')) return Colors.blue;
-    if (t.contains('football')) return Colors.purple;
+    if (t.contains('sports') || t.contains('soccer')) return Colors.green; // Sports = Green
     if (t.contains('weight')) return Colors.redAccent;
-    if (t.contains('walk'))return Colors.brown;
+    if (t.contains('walk')) return Colors.brown;
     if (t.contains('bike') || t.contains('cycl')) return Colors.pinkAccent;
-    return Colors.teal;
+    if (t.contains('yoga')) return Colors.purpleAccent; // Yoga = Purple
+    if (t.contains('hiit')) return Colors.deepOrange;   // HIIT = Deep Orange
+    return Colors.teal; // 'Other'
   }
 }

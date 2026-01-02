@@ -1,8 +1,8 @@
-import 'dart:io'; // Needed for File handling
+import 'dart:io'; 
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart'; // Storage
-import 'package:image_picker/image_picker.dart'; // Gallery Picker
+import 'package:firebase_storage/firebase_storage.dart'; 
+import 'package:image_picker/image_picker.dart'; 
 import '../../widgets/custom_button.dart';
 import '../../widgets/custom_text_field.dart';
 
@@ -21,9 +21,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
-  final User? user = FirebaseAuth.instance.currentUser;
+  // We grab the user here, but we will refresh it later
+  User? user = FirebaseAuth.instance.currentUser;
+  
   bool _isLoading = false;
-  File? _imageFile; // Variable to store the picked image locally
+  File? _imageFile; 
 
   @override
   void initState() {
@@ -67,13 +69,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               // --- 2. PROFILE PICTURE WITH TAP ACTION ---
               Center(
                 child: GestureDetector(
-                  onTap: _pickImage, // Tap avatar to pick image
+                  onTap: _pickImage, 
                   child: Stack(
                     children: [
                       CircleAvatar(
                         radius: 60,
                         backgroundColor: isDark ? Colors.grey[800] : Colors.grey[200],
-                        // Logic: Show Local File if picked, else show Network URL, else Icon
+                        // Show Local File if picked, else show Network URL, else Icon
                         backgroundImage: _imageFile != null
                             ? FileImage(_imageFile!) as ImageProvider
                             : (user?.photoURL != null ? NetworkImage(user!.photoURL!) : null),
@@ -104,7 +106,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               ),
               const SizedBox(height: 30),
 
-              // --- INPUT FIELDS (Same as before) ---
+              // --- INPUT FIELDS ---
               CustomTextField(
                 controller: _usernameController,
                 label: "Username",
@@ -146,7 +148,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     );
   }
 
-  // --- 3. UPDATE LOGIC WITH STORAGE UPLOAD ---
+  // --- 3. UPDATE LOGIC ---
   Future<void> _updateProfile() async {
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
@@ -155,19 +157,18 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
         // A. UPLOAD IMAGE IF SELECTED
         if (_imageFile != null) {
-          // 1. Create a reference to Firebase Storage
           final storageRef = FirebaseStorage.instance
               .ref()
               .child('user_profiles')
               .child('${user!.uid}.jpg');
 
-          // 2. Upload the file
+          // Upload
           await storageRef.putFile(_imageFile!);
-
-          // 3. Get the Download URL
+          
+          // Get URL
           final String downloadUrl = await storageRef.getDownloadURL();
 
-          // 4. Update User Profile with new URL
+          // Update Profile
           await user?.updatePhotoURL(downloadUrl);
           changed = true;
         }
@@ -181,10 +182,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         // C. Update Email
         if (_emailController.text != user?.email) {
           await user?.verifyBeforeUpdateEmail(_emailController.text);
-          if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Verification email sent.")),
-          );
           changed = true;
         }
 
@@ -194,18 +191,28 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           changed = true;
         }
 
+        // --- CRITICAL FIX: FORCE RELOAD ---
+        // This forces the local Firebase User object to sync with the server immediately.
+        // Without this, the Dashboard might still show the old photo for a few seconds.
+        await user?.reload();
+        user = FirebaseAuth.instance.currentUser; // Refresh local reference
+
         setState(() => _isLoading = false);
 
+        if (!mounted) return;
+
         if (changed || _passwordController.text.isNotEmpty) {
-           if(!mounted) return;
+           ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Profile updated successfully!")),
+           );
            Navigator.pop(context); 
         } else {
-           if(!mounted) return;
            Navigator.pop(context);
         }
 
       } catch (e) {
         setState(() => _isLoading = false);
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("Error: ${e.toString()}")),
         );

@@ -187,7 +187,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             }, isDark),
             
             _buildMenuOption(context, "Log Out", Icons.logout, () async {
-              await AuthService().signOut();
+              await FirebaseAuth.instance.signOut();
             }, isDark, isRed: true),
 
             const SizedBox(height: 40),
