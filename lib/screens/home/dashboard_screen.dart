@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../services/database_service.dart';
+import '../../config/routes.dart'; // Import AppRoutes
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({Key? key}) : super(key: key);
@@ -67,6 +68,7 @@ class DashboardScreen extends StatelessWidget {
 
                     return Column(
                       children: [
+                        // Row 1
                         Row(
                           children: [
                             Expanded(
@@ -75,7 +77,6 @@ class DashboardScreen extends StatelessWidget {
                                 value: totalCalories, 
                                 icon: Icons.local_fire_department,
                                 colors: [Colors.orange.shade400, Colors.deepOrange.shade600],
-                                isSmall: true,
                               ),
                             ),
                             const SizedBox(width: 15),
@@ -93,7 +94,6 @@ class DashboardScreen extends StatelessWidget {
                                     value: bmi,
                                     icon: Icons.monitor_weight,
                                     colors: [Colors.purple.shade300, Colors.purple.shade700],
-                                    isSmall: true,
                                   );
                                 },
                               ),
@@ -103,6 +103,7 @@ class DashboardScreen extends StatelessWidget {
 
                         const SizedBox(height: 15),
 
+                        // Row 2
                         Row(
                           children: [
                             Expanded(
@@ -111,7 +112,6 @@ class DashboardScreen extends StatelessWidget {
                                 value: totalWorkouts,
                                 icon: Icons.fitness_center,
                                 colors: [Colors.teal.shade300, Colors.teal.shade700],
-                                isSmall: true,
                               ),
                             ),
                             const SizedBox(width: 15),
@@ -121,7 +121,6 @@ class DashboardScreen extends StatelessWidget {
                                 value: totalDuration,
                                 icon: Icons.timer,
                                 colors: [Colors.blue.shade300, Colors.blue.shade700],
-                                isSmall: true,
                               ),
                             ),
                           ],
@@ -133,11 +132,12 @@ class DashboardScreen extends StatelessWidget {
 
                 const SizedBox(height: 40),
 
+                // CTA Button
                 SizedBox(
                   width: double.infinity,
                   height: 55,
                   child: ElevatedButton(
-                    onPressed: () => Navigator.pushNamed(context, '/add_activity'),
+                    onPressed: () => Navigator.pushNamed(context, AppRoutes.addActivity),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: isDark ? Colors.grey[800] : Colors.white,
                       foregroundColor: Colors.teal,
@@ -205,11 +205,12 @@ class DashboardScreen extends StatelessWidget {
     required String value,
     required IconData icon,
     required List<Color> colors,
-    bool isSmall = false,
   }) {
+    // FIX FOR OVERFLOW:
+    // We remove fixed 'height' and use padding/constraints instead.
+    // This allows the card to grow if the font is large or progress bar is added.
     return Container(
-      // FIX: Increased height from 150 to 170 to prevent overflow
-      height: 170, 
+      constraints: const BoxConstraints(minHeight: 160), // Ensure minimum size
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -238,6 +239,7 @@ class DashboardScreen extends StatelessWidget {
             ),
             child: Icon(icon, color: Colors.white, size: 24),
           ),
+          const SizedBox(height: 15), // Add spacing instead of relying on alignment
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -304,17 +306,22 @@ class DashboardScreen extends StatelessWidget {
           ListTile(
             leading: const Icon(Icons.list),
             title: const Text("History"),
-            onTap: () => Navigator.pushNamed(context, '/activity_list'),
+            onTap: () => Navigator.pushNamed(context, AppRoutes.activityList),
+          ),
+          ListTile(
+            leading: const Icon(Icons.calendar_month),
+            title: const Text("Calendar"),
+            onTap: () => Navigator.pushNamed(context, AppRoutes.calendar),
           ),
           ListTile(
             leading: const Icon(Icons.monitor_weight),
             title: const Text("Body Metrics Tracker"),
-            onTap: () => Navigator.pushNamed(context, '/body_metrics'),
+            onTap: () => Navigator.pushNamed(context, AppRoutes.bodyMetrics), 
           ),
           ListTile(
             leading: const Icon(Icons.person),
             title: const Text("Profile"),
-            onTap: () => Navigator.pushNamed(context, '/profile'),
+            onTap: () => Navigator.pushNamed(context, AppRoutes.profile),
           ),
           ListTile(
             leading: const Icon(Icons.notifications),
@@ -324,7 +331,7 @@ class DashboardScreen extends StatelessWidget {
           ListTile(
             leading: const Icon(Icons.settings),
             title: const Text("Settings"),
-            onTap: () => Navigator.pushNamed(context, '/settings'),
+            onTap: () => Navigator.pushNamed(context, AppRoutes.settings),
           ),
           const Divider(),
           ListTile(

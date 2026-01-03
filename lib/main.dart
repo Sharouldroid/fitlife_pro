@@ -16,6 +16,7 @@ import 'screens/home/dashboard_screen.dart';
 import 'screens/home/notification_screen.dart';
 import 'screens/activity/activity_list_screen.dart';
 import 'screens/activity/add_activity_screen.dart';
+import 'screens/activity/activity_calendar_screen.dart';
 
 // --- PROFILE SCREENS ---
 import 'screens/profile/profile_screen.dart';
@@ -90,6 +91,7 @@ class MyApp extends StatelessWidget {
             '/notifications': (context) => const NotificationScreen(),
             '/activity_list': (context) => const ActivityListScreen(),
             '/add_activity': (context) => const AddActivityScreen(),
+            '/calendar': (context) => const ActivityCalendarScreen(),
             
             '/profile': (context) => const ProfileScreen(),
             '/settings': (context) => const SettingsScreen(),

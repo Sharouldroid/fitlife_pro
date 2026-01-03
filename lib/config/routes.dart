@@ -7,6 +7,8 @@ import '../screens/activity/add_activity_screen.dart';
 import '../screens/activity/activity_list_screen.dart';
 import '../screens/profile/profile_screen.dart';
 import '../screens/profile/settings_screen.dart';
+import '../screens/activity/activity_calendar_screen.dart';
+import '../screens/profile/body_metrics_screen.dart';
 
 class AppRoutes {
   static const String splash = '/';
@@ -16,7 +18,9 @@ class AppRoutes {
   static const String activityList = '/activity_list';
   static const String addActivity = '/add_activity';
   static const String profile = '/profile';
+  static const String bodyMetrics = '/body_metrics';
   static const String settings = '/settings';
+  static const String calendar = '/calendar';
 
   static Map<String, WidgetBuilder> getRoutes() {
     return {
@@ -27,7 +31,9 @@ class AppRoutes {
       activityList: (context) => const ActivityListScreen(),
       addActivity: (context) => const AddActivityScreen(),
       profile: (context) => const ProfileScreen(),
+      bodyMetrics: (context) => const BodyMetricsScreen(),
       settings: (context) => const SettingsScreen(),
+      calendar: (context) => const ActivityCalendarScreen()
     };
   }
 }

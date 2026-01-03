@@ -1,15 +1,20 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class DatabaseService {
-  final CollectionReference activityCollection = FirebaseFirestore.instance.collection('activities');
-  final CollectionReference metricsCollection = FirebaseFirestore.instance.collection('body_metrics');
-  final CollectionReference userCollection = FirebaseFirestore.instance.collection('users');
+  final CollectionReference activityCollection =
+      FirebaseFirestore.instance.collection('activities');
+
+  final CollectionReference metricsCollection =
+      FirebaseFirestore.instance.collection('body_metrics');
+
+  final CollectionReference userCollection =
+      FirebaseFirestore.instance.collection('users');
 
   // ==================================================
   //                ACTIVITY FUNCTIONS
   // ==================================================
 
-  // --- ADD ACTIVITY (AGGREGATED) ---
+  // 1. Add Activity (Aggregated)
   Future<void> addActivity({
     required String uid,
     required String type,
@@ -46,7 +51,7 @@ class DatabaseService {
     await batch.commit();
   }
 
-  // --- 2. GET USER ACTIVITIES (STREAM) ---
+  // 2. Get User Activities (Stream)
   Stream<QuerySnapshot> getUserData(String uid) {
     return activityCollection
         .where('uid', isEqualTo: uid)
@@ -54,12 +59,12 @@ class DatabaseService {
         .snapshots();
   }
 
-  // --- 2b. GET USER PROFILE (STREAM) ---
+  // 2b. Get User Profile (Stream)
   Stream<DocumentSnapshot> getUserProfile(String uid) {
     return userCollection.doc(uid).snapshots();
   }
 
-  // --- UPDATE ACTIVITY ---
+  // 3. Update Activity
   Future<void> updateActivity({
     required String docId,
     required String type,
@@ -98,7 +103,7 @@ class DatabaseService {
     });
   }
 
-  // --- DELETE ACTIVITY ---
+  // 4. Delete Activity
   Future<void> deleteActivity(String docId) async {
     final DocumentReference activityRef = activityCollection.doc(docId);
 
@@ -126,7 +131,6 @@ class DatabaseService {
   //              MIGRATION / REPAIR TOOLS
   // ==================================================
   
-  // 1. Recalculate (The Fix)
   Future<void> recalculateUserStats(String uid) async {
     QuerySnapshot snapshot = await activityCollection.where('uid', isEqualTo: uid).get();
     
@@ -147,7 +151,6 @@ class DatabaseService {
     }, SetOptions(merge: true)); 
   }
 
-  // 2. DEBUG RESET (The Break)
   Future<void> debugResetStats(String uid) async {
     await userCollection.doc(uid).set({
       'totalWorkouts': 0,
@@ -160,15 +163,23 @@ class DatabaseService {
   //              BODY METRICS FUNCTIONS
   // ==================================================
 
-  Future<void> addMetric({required String uid, required String weight, required String bmi}) async {
+  // 1. ADD METRIC (Fixed: Added Height parameter)
+  Future<void> addMetric({
+    required String uid, 
+    required String weight, 
+    String? height, // Added Optional Height
+    required String bmi
+  }) async {
     await metricsCollection.add({
       'uid': uid,
       'weight': weight,
+      'height': height ?? '', // Save height if provided, else empty string
       'bmi': bmi,
       'timestamp': FieldValue.serverTimestamp(),
     });
   }
 
+  // 2. GET METRICS
   Stream<QuerySnapshot> getUserMetrics(String uid) {
     return metricsCollection
         .where('uid', isEqualTo: uid)
@@ -176,10 +187,27 @@ class DatabaseService {
         .snapshots();
   }
 
-  Future<void> updateMetric({required String docId, required String weight, required String bmi}) async {
-    await metricsCollection.doc(docId).update({'weight': weight, 'bmi': bmi});
+  // 3. UPDATE METRIC (Fixed: Height is now String?)
+  Future<void> updateMetric({
+    required String docId,
+    required String weight,
+    String? height, // MUST be nullable (String?) to allow null check
+    required String bmi,
+  }) async {
+    Map<String, dynamic> data = {
+      'weight': weight,
+      'bmi': bmi,
+    };
+    
+    // Only update height if it was provided
+    if (height != null) {
+      data['height'] = height;
+    }
+
+    await metricsCollection.doc(docId).update(data);
   }
 
+  // 4. DELETE METRIC
   Future<void> deleteMetric(String docId) async {
     await metricsCollection.doc(docId).delete();
   }

@@ -91,7 +91,6 @@ class _BodyMetricsScreenState extends State<BodyMetricsScreen> {
                     onPressed: _calculateAndSave,
                   ),
                   
-                  // LAST CALCULATION DISPLAY
                   if (_calculatedBMI.isNotEmpty) ...[
                     const SizedBox(height: 20),
                     Container(
@@ -153,7 +152,7 @@ class _BodyMetricsScreenState extends State<BodyMetricsScreen> {
             ),
           ),
 
-          // --- HISTORY LIST (WITH DELETE) ---
+          // --- HISTORY LIST ---
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
               stream: DatabaseService().getUserMetrics(user?.uid ?? ''),
@@ -174,8 +173,10 @@ class _BodyMetricsScreenState extends State<BodyMetricsScreen> {
                     
                     double bmi = double.tryParse(data['bmi'].toString()) ?? 0;
                     String category = _getBMICategory(bmi);
+                    
+                    // Safe access to height (it might not exist in old records)
+                    String heightVal = data.containsKey('height') ? data['height'].toString() : "";
 
-                    // Date formatting
                     String dateString = "Just now";
                     if (data['timestamp'] != null) {
                       DateTime date = (data['timestamp'] as Timestamp).toDate();
@@ -227,12 +228,12 @@ class _BodyMetricsScreenState extends State<BodyMetricsScreen> {
                             ),
                           ),
                           subtitle: Text(
-                            "BMI: ${data['bmi']} ($category)\n$dateString",
+                            "Height: ${heightVal.isEmpty ? '--' : heightVal} cm\nBMI: ${data['bmi']} ($category)\n$dateString",
                             style: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey[600]),
                           ),
                           isThreeLine: true, 
-                          // Allow editing on tap
-                          onTap: () => _showEditDialog(doc.id, data['weight'], data['bmi'], isDark),
+                          // Pass height to edit dialog
+                          onTap: () => _showEditDialog(doc.id, data['weight'], heightVal, data['bmi'], isDark),
                         ),
                       ),
                     );
@@ -248,22 +249,17 @@ class _BodyMetricsScreenState extends State<BodyMetricsScreen> {
 
   // --- LOGIC: Calculate & Save ---
   Future<void> _calculateAndSave() async {
-    // 1. Basic Check
     if (_weightController.text.isEmpty || _heightController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Please enter Weight and Height")));
       return;
     }
 
-    // 2. Strict Input Validation (No Negatives)
     double? w = double.tryParse(_weightController.text);
     double? h = double.tryParse(_heightController.text);
 
     if (w == null || h == null || w <= 0 || h <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Please enter positive numbers greater than 0"),
-          backgroundColor: Colors.red,
-        )
+        const SnackBar(content: Text("Please enter positive numbers greater than 0"), backgroundColor: Colors.red)
       );
       return;
     }
@@ -281,18 +277,17 @@ class _BodyMetricsScreenState extends State<BodyMetricsScreen> {
         _calculatedBMI = bmiString;
       });
 
-      // Show Result Popup
       await _showBMIResultDialog(bmiVal, bmiString);
 
-      // Save to Firebase
       if (user != null) {
         await DatabaseService().addMetric(
           uid: user!.uid,
           weight: _weightController.text,
+          // NEW: We are now saving Height too!
+          height: _heightController.text,
           bmi: bmiString,
         );
         _weightController.clear();
-        // We keep height because it rarely changes for adults
       }
     } catch (e) {
       if (mounted) {
@@ -319,36 +314,20 @@ class _BodyMetricsScreenState extends State<BodyMetricsScreen> {
           children: [
             Container(
               padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: color.withOpacity(0.1),
-              ),
-              child: Text(
-                bmiString,
-                style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: color),
-              ),
+              decoration: BoxDecoration(shape: BoxShape.circle, color: color.withOpacity(0.1)),
+              child: Text(bmiString, style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: color)),
             ),
             const SizedBox(height: 10),
-            Text(
-              category.toUpperCase(),
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color),
-            ),
+            Text(category.toUpperCase(), style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color)),
             const SizedBox(height: 10),
-            Text(
-              advice,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 14, color: Colors.grey),
-            ),
+            Text(advice, textAlign: TextAlign.center, style: const TextStyle(fontSize: 14, color: Colors.grey)),
           ],
         ),
         actions: [
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: color,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              ),
+              style: ElevatedButton.styleFrom(backgroundColor: color, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
               onPressed: () => Navigator.pop(ctx),
               child: const Text("Save to History", style: TextStyle(color: Colors.white)),
             ),
@@ -358,9 +337,10 @@ class _BodyMetricsScreenState extends State<BodyMetricsScreen> {
     );
   }
 
-  // --- EDIT DIALOG ---
-  void _showEditDialog(String docId, String currentWeight, String currentBMI, bool isDark) {
+  // --- UPDATED EDIT DIALOG (With Height) ---
+  void _showEditDialog(String docId, String currentWeight, String currentHeight, String currentBMI, bool isDark) {
     TextEditingController editWeightCtrl = TextEditingController(text: currentWeight);
+    TextEditingController editHeightCtrl = TextEditingController(text: currentHeight); // NEW
     TextEditingController editBMICtrl = TextEditingController(text: currentBMI);
 
     showDialog(
@@ -377,6 +357,17 @@ class _BodyMetricsScreenState extends State<BodyMetricsScreen> {
               keyboardType: TextInputType.number,
               decoration: InputDecoration(
                 labelText: "Weight (kg)",
+                labelStyle: TextStyle(color: isDark ? Colors.grey : Colors.black54),
+                enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: isDark ? Colors.grey : Colors.black)),
+              )
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: editHeightCtrl, // NEW FIELD
+              style: TextStyle(color: isDark ? Colors.white : Colors.black),
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                labelText: "Height (cm)",
                 labelStyle: TextStyle(color: isDark ? Colors.grey : Colors.black54),
                 enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: isDark ? Colors.grey : Colors.black)),
               )
@@ -407,6 +398,7 @@ class _BodyMetricsScreenState extends State<BodyMetricsScreen> {
               await DatabaseService().updateMetric(
                 docId: docId,
                 weight: editWeightCtrl.text,
+                height: editHeightCtrl.text, // Pass Height
                 bmi: editBMICtrl.text,
               );
               if (mounted) Navigator.pop(ctx);
