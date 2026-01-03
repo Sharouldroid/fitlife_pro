@@ -67,21 +67,19 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
   // Smart Navigation: Checks Authentication while animating
   Future<void> _handleNavigation() async {
-    // Ensure the splash stays for at least 5 seconds so user sees the animation
-    await Future.delayed(const Duration(milliseconds: 5000));
+    // Ensure the splash stays for at least 2.5 seconds so user sees the animation
+    await Future.delayed(const Duration(milliseconds: 2500));
 
     if (!mounted) return;
 
     // Check if user is already logged in
     final User? currentUser = FirebaseAuth.instance.currentUser;
 
-    if (currentUser != null) {
-      // User is logged in -> Go to Dashboard
-      Navigator.of(context).pushReplacementNamed('/home');
-    } else {
-      // User is logged out -> Go to Login
-      Navigator.of(context).pushReplacementNamed('/login');
-    }
+    Timer(const Duration(seconds: 3), () {
+      if (mounted) {
+        Navigator.of(context).pushReplacementNamed('/');
+      }
+    });
   }
 
   @override
