@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:async';
 
 class SplashScreen extends StatefulWidget {
@@ -10,37 +11,77 @@ class SplashScreen extends StatefulWidget {
 
 class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
   late AnimationController _controller;
-  late Animation<double> _fadeAnimation;
-  late Animation<double> _scaleAnimation;
+  
+  // Multiple animations for a "Staggered" effect
+  late Animation<double> _logoScaleAnimation;
+  late Animation<double> _logoFadeAnimation;
+  late Animation<Offset> _textSlideAnimation;
+  late Animation<double> _textFadeAnimation;
 
   @override
   void initState() {
     super.initState();
 
-    // 1. Initialize Animation Controller
+    // 1. Initialize Controller
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1500), // Animation takes 1.5 seconds
+      duration: const Duration(milliseconds: 2000), // 2 Seconds total
     );
 
-    // 2. Define Animations
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeIn),
+    // 2. Define Staggered Animations
+    
+    // Logo appears first (0% to 50% of timeline)
+    _logoScaleAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: const Interval(0.0, 0.5, curve: Curves.easeOutBack),
+      ),
+    );
+    
+    _logoFadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: const Interval(0.0, 0.4, curve: Curves.easeIn),
+      ),
     );
 
-    _scaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOutBack),
+    // Text slides up later (40% to 100% of timeline)
+    _textSlideAnimation = Tween<Offset>(begin: const Offset(0, 0.5), end: Offset.zero).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: const Interval(0.4, 1.0, curve: Curves.easeOutCubic),
+      ),
     );
 
-    // 3. Start Animation
+    _textFadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: const Interval(0.4, 0.8, curve: Curves.easeIn),
+      ),
+    );
+
+    // 3. Start Animation and Navigation Logic
     _controller.forward();
+    _handleNavigation();
+  }
 
-    // 4. Navigation Timer (Wait 3 seconds, then go to Login/Home)
-    Timer(const Duration(seconds: 3), () {
-      if (mounted) {
-        Navigator.of(context).pushReplacementNamed('/');
-      }
-    });
+  // Smart Navigation: Checks Authentication while animating
+  Future<void> _handleNavigation() async {
+    // Ensure the splash stays for at least 5 seconds so user sees the animation
+    await Future.delayed(const Duration(milliseconds: 5000));
+
+    if (!mounted) return;
+
+    // Check if user is already logged in
+    final User? currentUser = FirebaseAuth.instance.currentUser;
+
+    if (currentUser != null) {
+      // User is logged in -> Go to Dashboard
+      Navigator.of(context).pushReplacementNamed('/home');
+    } else {
+      // User is logged out -> Go to Login
+      Navigator.of(context).pushReplacementNamed('/login');
+    }
   }
 
   @override
@@ -51,82 +92,121 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
   @override
   Widget build(BuildContext context) {
-    // Detect Dark Mode to adjust gradient slightly if needed
-    final bool isDark = Theme.of(context).brightness == Brightness.dark;
-
     return Scaffold(
       body: Container(
         width: double.infinity,
         height: double.infinity,
-        decoration: BoxDecoration(
-          // MODERN GRADIENT BACKGROUND
+        decoration: const BoxDecoration(
+          // Premium Linear Gradient
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: isDark 
-              ? [const Color(0xFF004D40), const Color(0xFF000000)] // Darker for Dark Mode
-              : [Colors.teal.shade400, Colors.teal.shade900],      // Vibrant for Light Mode
+            colors: [
+              Color(0xFF004D40), // Deep Teal
+              Color(0xFF000000), // Black
+            ],
           ),
         ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+        child: Stack(
+          alignment: Alignment.center,
           children: [
-            // ANIMATED LOGO
-            ScaleTransition(
-              scale: _scaleAnimation,
-              child: FadeTransition(
-                opacity: _fadeAnimation,
-                child: Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2), // Glassmorphism effect
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.fitness_center,
-                    size: 80,
-                    color: Colors.white,
-                  ),
+            // --- BACKGROUND PATTERN (Optional Subtle Circles) ---
+            Positioned(
+              top: -50,
+              right: -50,
+              child: Container(
+                width: 200,
+                height: 200,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withOpacity(0.05),
                 ),
               ),
             ),
-            
-            const SizedBox(height: 25),
 
-            // ANIMATED TEXT
-            FadeTransition(
-              opacity: _fadeAnimation,
-              child: Column(
-                children: [
-                  const Text(
-                    "FitLife Pro",
-                    style: TextStyle(
-                      fontSize: 36,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                      letterSpacing: 1.5, // Makes text look premium
+            // --- MAIN CONTENT ---
+            Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // 1. ANIMATED LOGO WITH GLOW
+                FadeTransition(
+                  opacity: _logoFadeAnimation,
+                  child: ScaleTransition(
+                    scale: _logoScaleAnimation,
+                    child: Container(
+                      padding: const EdgeInsets.all(25),
+                      decoration: BoxDecoration(
+                        color: Colors.teal.shade700, 
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          // Glow Effect
+                          BoxShadow(
+                            color: Colors.teal.withOpacity(0.5),
+                            blurRadius: 30,
+                            spreadRadius: 10,
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.fitness_center,
+                        size: 70,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 10),
-                  Text(
-                    "Your Journey Starts Here",
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.white.withOpacity(0.8),
-                      letterSpacing: 1.0,
+                ),
+                
+                const SizedBox(height: 40),
+
+                // 2. SLIDING TEXT
+                SlideTransition(
+                  position: _textSlideAnimation,
+                  child: FadeTransition(
+                    opacity: _textFadeAnimation,
+                    child: Column(
+                      children: [
+                        const Text(
+                          "FitLife Pro",
+                          style: TextStyle(
+                            fontSize: 40,
+                            fontWeight: FontWeight.w900, // Very Bold
+                            color: Colors.white,
+                            letterSpacing: 2.0, // Premium spacing
+                            fontFamily: 'Roboto', // Or your custom font
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          "ELEVATE YOUR FITNESS", // All Caps tagline looks pro
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.tealAccent.shade400, // Accent color
+                            letterSpacing: 4.0, // Wide spacing for tagline
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ],
+                ),
+              ],
+            ),
+
+            // --- BOTTOM LOADER ---
+            Positioned(
+              bottom: 50,
+              child: FadeTransition(
+                opacity: _textFadeAnimation, // Fade in with text
+                child: const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    color: Colors.white38,
+                    strokeWidth: 2,
+                  ),
+                ),
               ),
-            ),
-
-            const SizedBox(height: 60),
-
-            // LOADING INDICATOR (Subtle)
-            const CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-              strokeWidth: 3,
-            ),
+            )
           ],
         ),
       ),
