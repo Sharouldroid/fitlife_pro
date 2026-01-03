@@ -120,7 +120,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ListTile(
             leading: const Icon(Icons.bug_report, color: Colors.red),
             title: const Text("Debug: Reset to Zero"),
-            subtitle: const Text("Simulate broken data for testing."),
+            subtitle: const Text("Reset For New Data"),
             onTap: _runDebugReset,
             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
           ),

@@ -67,7 +67,12 @@ class _AddActivityScreenState extends State<AddActivityScreen> {
   void _calculateCalories() {
     final durationText = _durationController.text;
     if (_selectedActivity == null || durationText.isEmpty) return;
+    
     final double duration = double.tryParse(durationText) ?? 0;
+    
+    // Logic check: only calculate if duration is positive
+    if (duration <= 0) return;
+
     double met = _activityMETs[_selectedActivity] ?? 4.0;
     final double caloriesBurned = (met * 3.5 * _userWeight) / 200 * duration;
     _caloriesController.text = caloriesBurned.toStringAsFixed(0);
@@ -131,23 +136,37 @@ class _AddActivityScreenState extends State<AddActivityScreen> {
                 ),
 
                 const SizedBox(height: 20),
+                
+                // VALIDATED DURATION FIELD
                 CustomTextField(
                   controller: _durationController,
                   label: "Duration (minutes)",
                   hint: "e.g. 30",
                   prefixIcon: Icons.timer,
                   keyboardType: TextInputType.number,
-                  validator: (val) => val!.isEmpty ? "Please enter duration" : null,
+                  validator: (val) {
+                    if (val == null || val.isEmpty) return "Please enter duration";
+                    if (double.tryParse(val) == null) return "Must be a number";
+                    if (double.parse(val) <= 0) return "Must be positive";
+                    return null;
+                  },
                 ),
                 
                 const SizedBox(height: 20),
+                
+                // VALIDATED CALORIES FIELD
                 CustomTextField(
                   controller: _caloriesController,
                   label: "Calories Burned (Est.)",
                   hint: "Auto-calculated",
                   prefixIcon: Icons.local_fire_department,
                   keyboardType: TextInputType.number,
-                  validator: (val) => val!.isEmpty ? "Please enter calories" : null,
+                  validator: (val) {
+                    if (val == null || val.isEmpty) return "Please enter calories";
+                    if (double.tryParse(val) == null) return "Must be a number";
+                    if (double.parse(val) <= 0) return "Must be positive";
+                    return null;
+                  },
                 ),
                 
                 const SizedBox(height: 20),
@@ -176,7 +195,23 @@ class _AddActivityScreenState extends State<AddActivityScreen> {
 
   Future<void> _saveActivity() async {
     FocusScope.of(context).unfocus(); // Close keyboard
+    
     if (_formKey.currentState!.validate()) {
+      
+      // --- LOGIC CHECK: Prevent sending 0 or negative numbers ---
+      double dur = double.tryParse(_durationController.text) ?? 0;
+      double cal = double.tryParse(_caloriesController.text) ?? 0;
+
+      if (dur <= 0 || cal <= 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Duration and Calories must be greater than 0"),
+            backgroundColor: Colors.red,
+          )
+        );
+        return;
+      }
+
       setState(() => _isLoading = true);
       try {
         final User? user = FirebaseAuth.instance.currentUser;

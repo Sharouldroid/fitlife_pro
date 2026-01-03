@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:intl/intl.dart'; 
 import '../../services/database_service.dart';
 import '../../widgets/custom_button.dart';
 import '../../widgets/custom_text_field.dart';
@@ -152,7 +153,7 @@ class _BodyMetricsScreenState extends State<BodyMetricsScreen> {
             ),
           ),
 
-          // --- HISTORY LIST ---
+          // --- HISTORY LIST (WITH DELETE) ---
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
               stream: DatabaseService().getUserMetrics(user?.uid ?? ''),
@@ -178,7 +179,7 @@ class _BodyMetricsScreenState extends State<BodyMetricsScreen> {
                     String dateString = "Just now";
                     if (data['timestamp'] != null) {
                       DateTime date = (data['timestamp'] as Timestamp).toDate();
-                      dateString = "${date.day}/${date.month}/${date.year}";
+                      dateString = DateFormat.yMMMd().format(date);
                     }
 
                     return Dismissible(
@@ -196,9 +197,11 @@ class _BodyMetricsScreenState extends State<BodyMetricsScreen> {
                       ),
                       onDismissed: (dir) async {
                         await DatabaseService().deleteMetric(doc.id);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text("Entry deleted")),
-                        );
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text("Entry deleted")),
+                          );
+                        }
                       },
                       child: Card(
                         elevation: 2,
@@ -227,7 +230,8 @@ class _BodyMetricsScreenState extends State<BodyMetricsScreen> {
                             "BMI: ${data['bmi']} ($category)\n$dateString",
                             style: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey[600]),
                           ),
-                          isThreeLine: true, // Allow subtitle to wrap
+                          isThreeLine: true, 
+                          // Allow editing on tap
                           onTap: () => _showEditDialog(doc.id, data['weight'], data['bmi'], isDark),
                         ),
                       ),
@@ -242,23 +246,34 @@ class _BodyMetricsScreenState extends State<BodyMetricsScreen> {
     );
   }
 
-  // --- LOGIC: Calculate, Show Popup & Save ---
+  // --- LOGIC: Calculate & Save ---
   Future<void> _calculateAndSave() async {
+    // 1. Basic Check
     if (_weightController.text.isEmpty || _heightController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Please enter Weight and Height")));
       return;
     }
 
-    // Hide keyboard
-    FocusScope.of(context).unfocus();
+    // 2. Strict Input Validation (No Negatives)
+    double? w = double.tryParse(_weightController.text);
+    double? h = double.tryParse(_heightController.text);
 
+    if (w == null || h == null || w <= 0 || h <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Please enter positive numbers greater than 0"),
+          backgroundColor: Colors.red,
+        )
+      );
+      return;
+    }
+
+    FocusScope.of(context).unfocus();
     setState(() => _isLoading = true);
 
     try {
-      double weight = double.parse(_weightController.text);
-      double heightCm = double.parse(_heightController.text);
-      double heightM = heightCm / 100;
-      double bmiVal = weight / (heightM * heightM);
+      double heightM = h / 100;
+      double bmiVal = w / (heightM * heightM);
       String bmiString = bmiVal.toStringAsFixed(1);
       
       setState(() {
@@ -266,10 +281,10 @@ class _BodyMetricsScreenState extends State<BodyMetricsScreen> {
         _calculatedBMI = bmiString;
       });
 
-      // 1. SHOW POPUP RESULT
+      // Show Result Popup
       await _showBMIResultDialog(bmiVal, bmiString);
 
-      // 2. SAVE TO DB
+      // Save to Firebase
       if (user != null) {
         await DatabaseService().addMetric(
           uid: user!.uid,
@@ -277,15 +292,18 @@ class _BodyMetricsScreenState extends State<BodyMetricsScreen> {
           bmi: bmiString,
         );
         _weightController.clear();
+        // We keep height because it rarely changes for adults
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
+      }
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  // --- NEW POPUP DIALOG ---
+  // --- POPUP DIALOG ---
   Future<void> _showBMIResultDialog(double bmi, String bmiString) async {
     String category = _getBMICategory(bmi);
     Color color = _getBMIColor(bmi);
@@ -340,7 +358,7 @@ class _BodyMetricsScreenState extends State<BodyMetricsScreen> {
     );
   }
 
-  // --- LOGIC: Edit Dialog ---
+  // --- EDIT DIALOG ---
   void _showEditDialog(String docId, String currentWeight, String currentBMI, bool isDark) {
     TextEditingController editWeightCtrl = TextEditingController(text: currentWeight);
     TextEditingController editBMICtrl = TextEditingController(text: currentBMI);
@@ -356,6 +374,7 @@ class _BodyMetricsScreenState extends State<BodyMetricsScreen> {
             TextField(
               controller: editWeightCtrl, 
               style: TextStyle(color: isDark ? Colors.white : Colors.black),
+              keyboardType: TextInputType.number,
               decoration: InputDecoration(
                 labelText: "Weight (kg)",
                 labelStyle: TextStyle(color: isDark ? Colors.grey : Colors.black54),
@@ -366,6 +385,7 @@ class _BodyMetricsScreenState extends State<BodyMetricsScreen> {
             TextField(
               controller: editBMICtrl, 
               style: TextStyle(color: isDark ? Colors.white : Colors.black),
+              keyboardType: TextInputType.number,
               decoration: InputDecoration(
                 labelText: "BMI (Manual)",
                 labelStyle: TextStyle(color: isDark ? Colors.grey : Colors.black54),
@@ -382,12 +402,14 @@ class _BodyMetricsScreenState extends State<BodyMetricsScreen> {
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.teal),
             onPressed: () async {
+              if (editWeightCtrl.text.isEmpty || editBMICtrl.text.isEmpty) return;
+              
               await DatabaseService().updateMetric(
                 docId: docId,
                 weight: editWeightCtrl.text,
                 bmi: editBMICtrl.text,
               );
-              Navigator.pop(ctx);
+              if (mounted) Navigator.pop(ctx);
             },
             child: const Text("Update", style: TextStyle(color: Colors.white)),
           )

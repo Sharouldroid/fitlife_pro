@@ -42,7 +42,6 @@ class DashboardScreen extends StatelessWidget {
                   stream: DatabaseService().getUserProfile(uid),
                   builder: (context, profileSnapshot) {
                     
-                    // UX IMPROVEMENT: Loading Indicator for Stats
                     if (profileSnapshot.connectionState == ConnectionState.waiting) {
                       return const SizedBox(
                         height: 250, 
@@ -50,7 +49,6 @@ class DashboardScreen extends StatelessWidget {
                       );
                     }
 
-                    // Default values
                     String totalCalories = "0";
                     String totalWorkouts = "0";
                     String totalDuration = "0 min";
@@ -210,7 +208,8 @@ class DashboardScreen extends StatelessWidget {
     bool isSmall = false,
   }) {
     return Container(
-      height: 150, 
+      // FIX: Increased height from 150 to 170 to prevent overflow
+      height: 170, 
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -262,6 +261,20 @@ class DashboardScreen extends StatelessWidget {
                   color: Colors.white.withOpacity(0.9),
                 ),
               ),
+              
+              // --- VISUAL LOGIC: Progress Bar for Calories ---
+              if (title == "Total Calories") ...[
+                const SizedBox(height: 8),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: LinearProgressIndicator(
+                    value: ((double.tryParse(value) ?? 0) / 2000).clamp(0.0, 1.0),
+                    backgroundColor: Colors.white24,
+                    valueColor: const AlwaysStoppedAnimation(Colors.white),
+                    minHeight: 6,
+                  ),
+                ),
+              ],
             ],
           ),
         ],
