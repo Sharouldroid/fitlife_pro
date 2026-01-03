@@ -73,7 +73,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     if (!mounted) return;
 
     // Check if user is already logged in
-    final User? currentUser = FirebaseAuth.instance.currentUser;
+    //final User? currentUser = FirebaseAuth.instance.currentUser;
 
     Timer(const Duration(seconds: 3), () {
       if (mounted) {
