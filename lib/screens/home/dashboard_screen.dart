@@ -223,7 +223,7 @@ class DashboardScreen extends StatelessWidget {
           ),
           ListTile(leading: const Icon(Icons.list), title: const Text("History"), onTap: () => Navigator.pushNamed(context, AppRoutes.activityList)),
           ListTile(leading: const Icon(Icons.calendar_month), title: const Text("Calendar"), onTap: () => Navigator.pushNamed(context, AppRoutes.calendar)),
-          ListTile(leading: const Icon(Icons.monitor_weight), title: const Text("Body Metrics Tracker"), onTap: () => Navigator.pushNamed(context, AppRoutes.profile)), // Usually this goes to profile or separate metric screen
+          ListTile(leading: const Icon(Icons.monitor_weight), title: const Text("Body Metrics Tracker"), onTap: () => Navigator.pushNamed(context, AppRoutes.bodyMetrics)), 
           ListTile(leading: const Icon(Icons.person), title: const Text("Profile"), onTap: () => Navigator.pushNamed(context, AppRoutes.profile)),
           ListTile(leading: const Icon(Icons.notifications), title: const Text("Notifications"), onTap: () => Navigator.pushNamed(context, '/notifications')),
           ListTile(leading: const Icon(Icons.settings), title: const Text("Settings"), onTap: () => Navigator.pushNamed(context, AppRoutes.settings)),
