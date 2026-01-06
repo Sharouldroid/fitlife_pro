@@ -185,10 +185,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _buildMenuOption(context, "Body Metrics", Icons.monitor_weight_outlined, () {
               Navigator.pushNamed(context, '/body_metrics');
             }, isDark),
-            
-            _buildMenuOption(context, "Log Out", Icons.logout, () async {
-              await FirebaseAuth.instance.signOut();
-            }, isDark, isRed: true),
 
             const SizedBox(height: 40),
           ],

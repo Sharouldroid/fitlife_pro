@@ -36,13 +36,33 @@ class _AddActivityScreenState extends State<AddActivityScreen> {
   final TextEditingController _notesController = TextEditingController();
 
   bool _isLoading = false;
-  double _userWeight = 70.0; 
+  double _userWeight = 70.0;
+  
+  // Flag to ensure we only load arguments once
+  bool _isInit = true;
 
   @override
   void initState() {
     super.initState();
     _fetchUserWeight();
     _durationController.addListener(_calculateCalories);
+  }
+
+  // --- NEW: LISTEN FOR ARGUMENTS FROM DASHBOARD ---
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_isInit) {
+      final args = ModalRoute.of(context)?.settings.arguments;
+      // If we received a number (int) from the dashboard timer
+      if (args != null && args is int) {
+        // Auto-fill duration
+        _durationController.text = args.toString();
+        // Default to a common activity if auto-filled (Optional)
+        // _selectedActivity = 'Running (Jog)'; 
+      }
+      _isInit = false;
+    }
   }
 
   Future<void> _fetchUserWeight() async {
@@ -56,6 +76,8 @@ class _AddActivityScreenState extends State<AddActivityScreen> {
             setState(() {
               _userWeight = double.tryParse(data['weight'].toString()) ?? 70.0;
             });
+            // Recalculate if weight loads after duration is set
+            _calculateCalories();
           }
         }
       } catch (e) {
@@ -70,7 +92,6 @@ class _AddActivityScreenState extends State<AddActivityScreen> {
     
     final double duration = double.tryParse(durationText) ?? 0;
     
-    // Logic check: only calculate if duration is positive
     if (duration <= 0) return;
 
     double met = _activityMETs[_selectedActivity] ?? 4.0;
@@ -98,10 +119,8 @@ class _AddActivityScreenState extends State<AddActivityScreen> {
         backgroundColor: isDark ? Colors.transparent : Colors.teal,
         foregroundColor: Colors.white,
       ),
-      // --- UX IMPROVEMENT: KEYBOARD DISMISSAL ---
       body: GestureDetector(
         onTap: () {
-          // This closes the keyboard when tapping anywhere outside
           FocusScope.of(context).unfocus();
         },
         child: SingleChildScrollView(
@@ -111,6 +130,25 @@ class _AddActivityScreenState extends State<AddActivityScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                // Highlight if coming from timer
+                if (_durationController.text.isNotEmpty && _selectedActivity == null)
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 20),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withOpacity(0.1),
+                      border: Border.all(color: Colors.orange),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(Icons.info, color: Colors.orange),
+                        SizedBox(width: 10),
+                        Expanded(child: Text("Time captured from Dashboard. Select an activity to calculate calories.")),
+                      ],
+                    ),
+                  ),
+
                 DropdownButtonFormField<String>(
                   value: _selectedActivity,
                   decoration: InputDecoration(
@@ -137,7 +175,6 @@ class _AddActivityScreenState extends State<AddActivityScreen> {
 
                 const SizedBox(height: 20),
                 
-                // VALIDATED DURATION FIELD
                 CustomTextField(
                   controller: _durationController,
                   label: "Duration (minutes)",
@@ -154,7 +191,6 @@ class _AddActivityScreenState extends State<AddActivityScreen> {
                 
                 const SizedBox(height: 20),
                 
-                // VALIDATED CALORIES FIELD
                 CustomTextField(
                   controller: _caloriesController,
                   label: "Calories Burned (Est.)",
@@ -194,11 +230,9 @@ class _AddActivityScreenState extends State<AddActivityScreen> {
   }
 
   Future<void> _saveActivity() async {
-    FocusScope.of(context).unfocus(); // Close keyboard
+    FocusScope.of(context).unfocus(); 
     
     if (_formKey.currentState!.validate()) {
-      
-      // --- LOGIC CHECK: Prevent sending 0 or negative numbers ---
       double dur = double.tryParse(_durationController.text) ?? 0;
       double cal = double.tryParse(_caloriesController.text) ?? 0;
 

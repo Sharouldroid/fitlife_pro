@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../services/database_service.dart';
-import '../../config/routes.dart'; // Import AppRoutes
+import '../../config/routes.dart';
+// IMPORT THE NEW WIDGET
+import '../../widgets/workout_timer_card.dart'; 
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({Key? key}) : super(key: key);
@@ -38,16 +40,13 @@ class DashboardScreen extends StatelessWidget {
                 
                 const SizedBox(height: 30),
 
-                // --- STATS SECTION ---
+                // --- STATS SECTION (StreamBuilders) ---
                 StreamBuilder<DocumentSnapshot>(
                   stream: DatabaseService().getUserProfile(uid),
                   builder: (context, profileSnapshot) {
                     
                     if (profileSnapshot.connectionState == ConnectionState.waiting) {
-                      return const SizedBox(
-                        height: 250, 
-                        child: Center(child: CircularProgressIndicator())
-                      );
+                      return const SizedBox(height: 170, child: Center(child: CircularProgressIndicator()));
                     }
 
                     String totalCalories = "0";
@@ -56,7 +55,6 @@ class DashboardScreen extends StatelessWidget {
 
                     if (profileSnapshot.hasData && profileSnapshot.data!.exists) {
                       Map<String, dynamic> data = profileSnapshot.data!.data() as Map<String, dynamic>;
-                      
                       num cals = data['totalCalories'] ?? 0;
                       num works = data['totalWorkouts'] ?? 0;
                       num dur = data['totalDuration'] ?? 0;
@@ -68,17 +66,9 @@ class DashboardScreen extends StatelessWidget {
 
                     return Column(
                       children: [
-                        // Row 1
                         Row(
                           children: [
-                            Expanded(
-                              child: _buildGradientCard(
-                                title: "Total Calories",
-                                value: totalCalories, 
-                                icon: Icons.local_fire_department,
-                                colors: [Colors.orange.shade400, Colors.deepOrange.shade600],
-                              ),
-                            ),
+                            Expanded(child: _buildGradientCard(title: "Total Calories", value: totalCalories, icon: Icons.local_fire_department, colors: [Colors.orange.shade400, Colors.deepOrange.shade600])),
                             const SizedBox(width: 15),
                             Expanded(
                               child: StreamBuilder<QuerySnapshot>(
@@ -89,40 +79,18 @@ class DashboardScreen extends StatelessWidget {
                                     var latest = metricSnapshot.data!.docs.first.data() as Map<String, dynamic>;
                                     bmi = latest['bmi'].toString();
                                   }
-                                  return _buildGradientCard(
-                                    title: "Current BMI",
-                                    value: bmi,
-                                    icon: Icons.monitor_weight,
-                                    colors: [Colors.purple.shade300, Colors.purple.shade700],
-                                  );
+                                  return _buildGradientCard(title: "Current BMI", value: bmi, icon: Icons.monitor_weight, colors: [Colors.purple.shade300, Colors.purple.shade700]);
                                 },
                               ),
                             ),
                           ],
                         ),
-
                         const SizedBox(height: 15),
-
-                        // Row 2
                         Row(
                           children: [
-                            Expanded(
-                              child: _buildGradientCard(
-                                title: "Workouts",
-                                value: totalWorkouts,
-                                icon: Icons.fitness_center,
-                                colors: [Colors.teal.shade300, Colors.teal.shade700],
-                              ),
-                            ),
+                            Expanded(child: _buildGradientCard(title: "Workouts", value: totalWorkouts, icon: Icons.fitness_center, colors: [Colors.teal.shade300, Colors.teal.shade700])),
                             const SizedBox(width: 15),
-                            Expanded(
-                              child: _buildGradientCard(
-                                title: "Duration",
-                                value: totalDuration,
-                                icon: Icons.timer,
-                                colors: [Colors.blue.shade300, Colors.blue.shade700],
-                              ),
-                            ),
+                            Expanded(child: _buildGradientCard(title: "Duration", value: totalDuration, icon: Icons.timer, colors: [Colors.blue.shade300, Colors.blue.shade700])),
                           ],
                         ),
                       ],
@@ -131,29 +99,25 @@ class DashboardScreen extends StatelessWidget {
                 ),
 
                 const SizedBox(height: 40),
+                
+                // --- INSERT ISOLATED TIMER WIDGET HERE ---
+                const WorkoutTimerCard(), 
+                // ----------------------------------------
 
-                // CTA Button
-                SizedBox(
-                  width: double.infinity,
-                  height: 55,
-                  child: ElevatedButton(
+                const SizedBox(height: 30),
+                
+                Center(
+                  child: TextButton.icon(
                     onPressed: () => Navigator.pushNamed(context, AppRoutes.addActivity),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: isDark ? Colors.grey[800] : Colors.white,
-                      foregroundColor: Colors.teal,
-                      elevation: 5,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                    ),
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.add_circle_outline, size: 28),
-                        SizedBox(width: 10),
-                        Text("Log New Activity", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                      ],
+                    icon: const Icon(Icons.edit_note, size: 20),
+                    label: const Text("Log Manual Entry instead"),
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.grey[600],
                     ),
                   ),
                 ),
+                
+                const SizedBox(height: 30),
               ],
             ),
           ),
@@ -162,70 +126,36 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
+  // --- HELPERS ---
   Widget _buildGreeting(User? user, bool isDark) {
     return Row(
       children: [
         CircleAvatar(
           radius: 28,
           backgroundColor: Colors.teal.shade100,
-          backgroundImage: user?.photoURL != null 
-              ? NetworkImage(user!.photoURL!) 
-              : null,
-          child: user?.photoURL == null 
-              ? const Icon(Icons.person, color: Colors.teal, size: 30) 
-              : null,
+          backgroundImage: user?.photoURL != null ? NetworkImage(user!.photoURL!) : null,
+          child: user?.photoURL == null ? const Icon(Icons.person, color: Colors.teal, size: 30) : null,
         ),
         const SizedBox(width: 15),
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              "Hello, ${user?.displayName ?? 'Athlete'}! 👋",
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: isDark ? Colors.white : Colors.black87,
-              ),
-            ),
-            Text(
-              "Let's check your progress.",
-              style: TextStyle(
-                fontSize: 14,
-                color: isDark ? Colors.grey[400] : Colors.grey[600],
-              ),
-            ),
+            Text("Hello, ${user?.displayName ?? 'Athlete'}! 👋", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87)),
+            Text("Let's check your progress.", style: TextStyle(fontSize: 14, color: isDark ? Colors.grey[400] : Colors.grey[600])),
           ],
         ),
       ],
     );
   }
 
-  Widget _buildGradientCard({
-    required String title,
-    required String value,
-    required IconData icon,
-    required List<Color> colors,
-  }) {
-    // FIX FOR OVERFLOW:
-    // We remove fixed 'height' and use padding/constraints instead.
-    // This allows the card to grow if the font is large or progress bar is added.
+  Widget _buildGradientCard({required String title, required String value, required IconData icon, required List<Color> colors}) {
     return Container(
-      constraints: const BoxConstraints(minHeight: 160), // Ensure minimum size
+      constraints: const BoxConstraints(minHeight: 160),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: colors,
-        ),
+        gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: colors),
         borderRadius: BorderRadius.circular(25),
-        boxShadow: [
-          BoxShadow(
-            color: colors.last.withOpacity(0.4),
-            blurRadius: 10,
-            offset: const Offset(0, 6),
-          ),
-        ],
+        boxShadow: [BoxShadow(color: colors.last.withOpacity(0.4), blurRadius: 10, offset: const Offset(0, 6))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -233,38 +163,19 @@ class DashboardScreen extends StatelessWidget {
         children: [
           Container(
             padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              shape: BoxShape.circle,
-            ),
+            decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), shape: BoxShape.circle),
             child: Icon(icon, color: Colors.white, size: 24),
           ),
-          const SizedBox(height: 15), // Add spacing instead of relying on alignment
+          const SizedBox(height: 15),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               FittedBox(
                 fit: BoxFit.scaleDown,
-                child: Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
+                child: Text(value, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white)),
               ),
               const SizedBox(height: 4),
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.white.withOpacity(0.9),
-                ),
-              ),
-              
-              // --- VISUAL LOGIC: Progress Bar for Calories ---
+              Text(title, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.white.withOpacity(0.9))),
               if (title == "Total Calories") ...[
                 const SizedBox(height: 8),
                 ClipRRect(
@@ -294,51 +205,24 @@ class DashboardScreen extends StatelessWidget {
             accountEmail: Text(user?.email ?? "User"),
             currentAccountPicture: CircleAvatar(
               backgroundColor: Colors.white,
-              backgroundImage: user?.photoURL != null 
-                  ? NetworkImage(user!.photoURL!) 
-                  : null,
-              child: user?.photoURL == null 
-                  ? const Icon(Icons.person, color: Colors.teal, size: 40)
-                  : null,
+              backgroundImage: user?.photoURL != null ? NetworkImage(user!.photoURL!) : null,
+              child: user?.photoURL == null ? const Icon(Icons.person, color: Colors.teal, size: 40) : null,
             ),
             decoration: const BoxDecoration(color: Colors.teal),
           ),
-          ListTile(
-            leading: const Icon(Icons.list),
-            title: const Text("History"),
-            onTap: () => Navigator.pushNamed(context, AppRoutes.activityList),
-          ),
-          ListTile(
-            leading: const Icon(Icons.calendar_month),
-            title: const Text("Calendar"),
-            onTap: () => Navigator.pushNamed(context, AppRoutes.calendar),
-          ),
-          ListTile(
-            leading: const Icon(Icons.monitor_weight),
-            title: const Text("Body Metrics Tracker"),
-            onTap: () => Navigator.pushNamed(context, AppRoutes.bodyMetrics), 
-          ),
-          ListTile(
-            leading: const Icon(Icons.person),
-            title: const Text("Profile"),
-            onTap: () => Navigator.pushNamed(context, AppRoutes.profile),
-          ),
-          ListTile(
-            leading: const Icon(Icons.notifications),
-            title: const Text("Notifications"),
-            onTap: () => Navigator.pushNamed(context, '/notifications'),
-          ),
-          ListTile(
-            leading: const Icon(Icons.settings),
-            title: const Text("Settings"),
-            onTap: () => Navigator.pushNamed(context, AppRoutes.settings),
-          ),
+          ListTile(leading: const Icon(Icons.list), title: const Text("History"), onTap: () => Navigator.pushNamed(context, AppRoutes.activityList)),
+          ListTile(leading: const Icon(Icons.calendar_month), title: const Text("Calendar"), onTap: () => Navigator.pushNamed(context, AppRoutes.calendar)),
+          ListTile(leading: const Icon(Icons.monitor_weight), title: const Text("Body Metrics Tracker"), onTap: () => Navigator.pushNamed(context, AppRoutes.profile)),
+          ListTile(leading: const Icon(Icons.person), title: const Text("Profile"), onTap: () => Navigator.pushNamed(context, AppRoutes.profile)),
+          ListTile(leading: const Icon(Icons.notifications), title: const Text("Notifications"), onTap: () => Navigator.pushNamed(context, '/notifications')),
+          ListTile(leading: const Icon(Icons.settings), title: const Text("Settings"), onTap: () => Navigator.pushNamed(context, AppRoutes.settings)),
           const Divider(),
           ListTile(
             leading: const Icon(Icons.logout, color: Colors.red),
             title: const Text("Logout"),
             onTap: () async {
               await FirebaseAuth.instance.signOut();
+              if (context.mounted) Navigator.of(context).pushNamedAndRemoveUntil(AppRoutes.login, (route) => false);
             },
           ),
         ],
