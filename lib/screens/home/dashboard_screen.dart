@@ -3,7 +3,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../services/database_service.dart';
 import '../../config/routes.dart';
-// IMPORT THE NEW WIDGET
 import '../../widgets/workout_timer_card.dart'; 
 
 class DashboardScreen extends StatelessWidget {
@@ -14,12 +13,23 @@ class DashboardScreen extends StatelessWidget {
     return StreamBuilder<User?>(
       stream: FirebaseAuth.instance.userChanges(),
       builder: (context, userSnapshot) {
+        
+        // 1. LOADING STATE (Auth)
         if (userSnapshot.connectionState == ConnectionState.waiting) {
            return const Scaffold(body: Center(child: CircularProgressIndicator()));
         }
 
-        final User? user = userSnapshot.data;
-        final String uid = user?.uid ?? '';
+        // 2. CHECK IF USER IS NULL
+        if (!userSnapshot.hasData || userSnapshot.data == null) {
+          // If no user, redirect to login (or show simple loading while redirect happens)
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            Navigator.of(context).pushReplacementNamed(AppRoutes.login);
+          });
+          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+        }
+
+        final User user = userSnapshot.data!;
+        final String uid = user.uid;
         final bool isDark = Theme.of(context).brightness == Brightness.dark;
 
         return Scaffold(
@@ -40,8 +50,9 @@ class DashboardScreen extends StatelessWidget {
                 
                 const SizedBox(height: 30),
 
-                // --- STATS SECTION (StreamBuilders) ---
+                // --- STATS SECTION ---
                 StreamBuilder<DocumentSnapshot>(
+                  // FIX: Only call this if uid is valid (which we checked above)
                   stream: DatabaseService().getUserProfile(uid),
                   builder: (context, profileSnapshot) {
                     
@@ -126,7 +137,7 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  // --- HELPERS ---
+  // --- HELPERS (Unchanged) ---
   Widget _buildGreeting(User? user, bool isDark) {
     return Row(
       children: [
@@ -212,7 +223,7 @@ class DashboardScreen extends StatelessWidget {
           ),
           ListTile(leading: const Icon(Icons.list), title: const Text("History"), onTap: () => Navigator.pushNamed(context, AppRoutes.activityList)),
           ListTile(leading: const Icon(Icons.calendar_month), title: const Text("Calendar"), onTap: () => Navigator.pushNamed(context, AppRoutes.calendar)),
-          ListTile(leading: const Icon(Icons.monitor_weight), title: const Text("Body Metrics Tracker"), onTap: () => Navigator.pushNamed(context, AppRoutes.profile)),
+          ListTile(leading: const Icon(Icons.monitor_weight), title: const Text("Body Metrics Tracker"), onTap: () => Navigator.pushNamed(context, AppRoutes.profile)), // Usually this goes to profile or separate metric screen
           ListTile(leading: const Icon(Icons.person), title: const Text("Profile"), onTap: () => Navigator.pushNamed(context, AppRoutes.profile)),
           ListTile(leading: const Icon(Icons.notifications), title: const Text("Notifications"), onTap: () => Navigator.pushNamed(context, '/notifications')),
           ListTile(leading: const Icon(Icons.settings), title: const Text("Settings"), onTap: () => Navigator.pushNamed(context, AppRoutes.settings)),
