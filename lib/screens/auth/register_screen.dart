@@ -34,6 +34,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Create Account"),
+        centerTitle: true,
         elevation: 0,
         // Background color handled by Theme
       ),
