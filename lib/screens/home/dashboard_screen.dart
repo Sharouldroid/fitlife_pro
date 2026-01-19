@@ -113,7 +113,6 @@ class DashboardScreen extends StatelessWidget {
                 
                 // --- INSERT ISOLATED TIMER WIDGET HERE ---
                 const WorkoutTimerCard(), 
-                // ----------------------------------------
 
                 const SizedBox(height: 30),
                 
@@ -121,7 +120,7 @@ class DashboardScreen extends StatelessWidget {
                   child: TextButton.icon(
                     onPressed: () => Navigator.pushNamed(context, AppRoutes.addActivity),
                     icon: const Icon(Icons.edit_note, size: 20),
-                    label: const Text("Log Manual Entry instead"),
+                    label: const Text("Log Manual Activity"),
                     style: TextButton.styleFrom(
                       foregroundColor: Colors.grey[600],
                     ),
