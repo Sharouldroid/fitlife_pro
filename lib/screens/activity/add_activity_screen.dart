@@ -85,7 +85,7 @@ class _AddActivityScreenState extends State<AddActivityScreen> {
       }
     }
   }
-
+  //logic cakculation
   void _calculateCalories() {
     final durationText = _durationController.text;
     if (_selectedActivity == null || durationText.isEmpty) return;
